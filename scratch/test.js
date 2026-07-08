@@ -6,10 +6,10 @@ const supabaseAnonKey = 'sb_publishable_uNVtv_06Lfc1d_fNHDXn_A_bCr4gt0J';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function run() {
-  console.log('Testing upload to "r-drive" bucket...');
+  console.log('Testing upload to "r-drive" bucket for ZupShare...');
   const { data: uploadData, error: uploadError } = await supabase.storage
     .from('r-drive')
-    .upload('test-connection.txt', Buffer.from('Hello R-Drive'), { contentType: 'text/plain', upsert: true });
+    .upload('test-connection.txt', Buffer.from('Hello ZupShare'), { contentType: 'text/plain', upsert: true });
 
   if (uploadError) {
     console.error('Error uploading file:', uploadError);

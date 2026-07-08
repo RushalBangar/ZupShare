@@ -82,11 +82,11 @@ function Footer() {
               <HardDrive size={14} className="text-white" />
             </div>
             <span className="font-semibold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
-              R-Drive
+              ZupShare
             </span>
           </div>
           <p className="text-foreground/40 text-xs leading-relaxed">
-            R-Drive is your free public cloud file sharing hub. Seamlessly upload, organize, and instantly share files worldwide with zero friction.
+            ZupShare is your free public cloud file sharing hub. Seamlessly upload, organize, and instantly share files worldwide with zero friction.
           </p>
         </div>
 
@@ -108,7 +108,7 @@ function Footer() {
       </div>
       
       <div className="max-w-6xl mx-auto px-6 py-4 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between gap-4">
-        <span className="text-foreground/25 text-xs">© 2026 R-Drive. All rights reserved.</span>
+        <span className="text-foreground/25 text-xs">© 2026 ZupShare. All rights reserved.</span>
         <div className="flex items-center gap-6 text-xs text-foreground/40">
           <a
             href="https://supabase.com"
@@ -148,7 +148,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
   ];
 
   const steps = [
-    { num: '01', icon: Globe, title: 'Open R-Drive', desc: 'Navigate to R-Drive — no account, no sign-up, no barriers. You\'re instantly in.', color: 'from-blue-500 to-cyan-500' },
+    { num: '01', icon: Globe, title: 'Open ZupShare', desc: 'Navigate to ZupShare — no account, no sign-up, no barriers. You\'re instantly in.', color: 'from-blue-500 to-cyan-500' },
     { num: '02', icon: Upload, title: 'Upload Your File', desc: 'Drag & drop files anywhere, or click "Upload" to pick one from your device.', color: 'from-violet-500 to-purple-500' },
     { num: '03', icon: Users, title: 'Share the Link', desc: 'Copy the file URL and share it — anyone can download it instantly.', color: 'from-emerald-500 to-teal-500' },
   ];
@@ -178,7 +178,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
               <HardDrive size={16} className="text-white" />
             </div>
             <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
-              R-Drive
+              ZupShare
             </span>
           </div>
           <button
@@ -239,7 +239,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
           transition={{ delay: 0.35, duration: 0.6 }}
           className="mt-6 text-lg text-foreground/55 max-w-xl leading-relaxed"
         >
-          R-Drive is a lightning-fast, public cloud file storage hub. Upload, organize, and share files with anyone — no account, no friction.
+          ZupShare is a lightning-fast, public cloud file storage hub. Upload, organize, and share files with anyone — no account, no friction.
         </motion.p>
 
         {/* CTAs */}
@@ -298,7 +298,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-medium mb-4">
               Simple as 1-2-3
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">How R-Drive Works</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">How ZupShare Works</h2>
             <p className="mt-4 text-foreground/50 max-w-md mx-auto">Three steps — and your file is in the cloud, ready to share with the world.</p>
           </motion.div>
 
@@ -388,7 +388,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
               onClick={onGetStarted}
               className="relative group inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary hover:bg-blue-500 text-white font-bold text-base shadow-2xl shadow-primary/40 hover:shadow-primary/60 transition-all duration-200"
             >
-              Open R-Drive
+              Open ZupShare
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
             </button>
           </div>
@@ -629,7 +629,7 @@ function FileManager({ onBack }: { onBack: () => void }) {
             <div className="w-px h-6 bg-white/10" />
             <div>
               <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-accent">
-                R-Drive
+                ZupShare
               </h1>
               <p className="text-xs text-foreground/50 mt-0.5">Public file sharing hub · Drag & drop anywhere to upload</p>
             </div>
