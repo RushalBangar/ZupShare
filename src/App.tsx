@@ -4,8 +4,8 @@ import {
   Folder, File as FileIcon, Upload, Plus, ChevronRight, Home,
   Loader2, Download, AlertCircle, X, Image, FileText,
   Film, Music, Archive, Code, CheckCircle2, FolderOpen,
-  Cloud, Shield, Zap, Globe, Users, ArrowRight,
-  HardDrive, Sparkles, ExternalLink, Lock
+  Cloud, Shield, Zap, Globe, Users, ArrowRight, ArrowLeft,
+  Sparkles, ExternalLink, Lock, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -78,9 +78,7 @@ function Footer() {
       <div className="max-w-6xl mx-auto px-6 py-10 flex flex-col md:flex-row items-center md:items-start justify-between gap-8">
         <div className="flex flex-col items-center md:items-start gap-3 max-w-sm text-center md:text-left">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center">
-              <HardDrive size={14} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="ZupShare Logo" className="w-7 h-7 rounded-lg shadow-sm" />
             <span className="font-semibold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
               ZupShare
             </span>
@@ -174,9 +172,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
       >
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <HardDrive size={16} className="text-white" />
-            </div>
+            <img src="/logo.png" alt="ZupShare Logo" className="w-8 h-8 rounded-xl shadow-lg shadow-blue-500/30" />
             <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
               ZupShare
             </span>
@@ -412,6 +408,10 @@ function FileManager({ onBack }: { onBack: () => void }) {
   const [newFolderName, setNewFolderName] = useState('');
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadFileName, setUploadFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -453,6 +453,57 @@ function FileManager({ onBack }: { onBack: () => void }) {
     }
   }, [addToast]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        const pwd = prompt('Enter Admin Password:');
+        if (pwd === import.meta.env.VITE_ADMIN_PASSWORD) {
+          setIsAdmin(true);
+          addToast('success', 'Admin mode enabled');
+        } else if (pwd !== null) {
+          addToast('error', 'Incorrect password');
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [addToast]);
+
+  const deleteFolderRecursively = async (path: string) => {
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).list(path);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      for (const item of data) {
+        if (item.id === null && item.name !== '.keep' && item.name !== '.emptyFolderPlaceholder') {
+           await deleteFolderRecursively(`${path}/${item.name}`);
+        } else {
+           await supabase.storage.from(BUCKET_NAME).remove([`${path}/${item.name}`]);
+        }
+      }
+    }
+    await supabase.storage.from(BUCKET_NAME).remove([`${path}/.keep`]);
+  };
+
+  const handleDelete = async (e: React.MouseEvent, item: FileItem) => {
+    e.stopPropagation();
+    if (!isAdmin || !confirm(`Are you sure you want to delete ${item.name}?`)) return;
+    setIsDeleting(item.fullPath);
+    try {
+      if (item.isFolder) {
+        await deleteFolderRecursively(item.fullPath);
+      } else {
+        const { error } = await supabase.storage.from(BUCKET_NAME).remove([item.fullPath]);
+        if (error) throw error;
+      }
+      addToast('success', `Deleted ${item.name}`);
+      fetchFiles(currentPath);
+    } catch (err: any) {
+      addToast('error', err.message || 'Failed to delete');
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   useEffect(() => { fetchFiles(currentPath); }, [currentPath, fetchFiles]);
 
   const handleNavigate = (path: string) => setCurrentPath(path);
@@ -480,7 +531,13 @@ function FileManager({ onBack }: { onBack: () => void }) {
   };
 
   const uploadFile = async (file: File) => {
-    const filePath = currentPath ? `${currentPath}/${file.name}` : file.name;
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_SIZE) {
+      addToast('error', 'File size exceeds 50MB limit');
+      return;
+    }
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const filePath = currentPath ? `${currentPath}/${sanitizedName}` : sanitizedName;
     setIsUploadModalOpen(false);
     setUploadFileName(file.name);
     setUploadProgress(0);
@@ -622,9 +679,10 @@ function FileManager({ onBack }: { onBack: () => void }) {
               id="back-to-landing"
               onClick={onBack}
               title="Back to home"
-              className="p-2 rounded-xl hover:bg-white/10 text-foreground/40 hover:text-foreground transition-colors"
+              aria-label="Back to home"
+              className="p-2 rounded-xl hover:bg-white/10 text-foreground/40 hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
             >
-              <HardDrive size={18} />
+              <ArrowLeft size={18} />
             </button>
             <div className="w-px h-6 bg-white/10" />
             <div>
@@ -639,14 +697,14 @@ function FileManager({ onBack }: { onBack: () => void }) {
             <button
               id="new-folder-btn"
               onClick={() => setIsFolderModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all text-sm font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
             >
               <Plus size={15} /> New Folder
             </button>
             <button
               id="upload-file-btn"
               onClick={() => setIsUploadModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-blue-500 text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all text-sm font-semibold"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-blue-500 text-white shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all text-sm font-semibold focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none"
             >
               <Upload size={15} /> Upload
             </button>
@@ -665,7 +723,8 @@ function FileManager({ onBack }: { onBack: () => void }) {
             <button
               id="breadcrumb-home"
               onClick={() => handleBreadcrumbClick(-1)}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors ${currentPath === '' ? 'text-foreground font-medium' : 'text-foreground/50 hover:text-foreground hover:bg-white/5'}`}
+              aria-label="Go to root folder"
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${currentPath === '' ? 'text-foreground font-medium' : 'text-foreground/50 hover:text-foreground hover:bg-white/5'}`}
             >
               <Home size={14} />
               <span>Root</span>
@@ -740,13 +799,23 @@ function FileManager({ onBack }: { onBack: () => void }) {
                         onClick={() => item.isFolder ? handleNavigate(item.fullPath) : handleDownload(item)}
                         className="glass rounded-xl p-4 cursor-pointer group hover:border-white/20 hover:bg-white/[0.06] hover:shadow-lg transition-all flex flex-col gap-2.5 relative overflow-hidden"
                       >
-                        {!item.isFolder && (
-                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+                          {isAdmin && (
+                            <button
+                              onClick={(e) => handleDelete(e, item)}
+                              disabled={isDeleting === item.fullPath}
+                              aria-label={`Delete ${item.name}`}
+                              className="p-1.5 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/40 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none transition-colors"
+                            >
+                              {isDeleting === item.fullPath ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                            </button>
+                          )}
+                          {!item.isFolder && (
                             <div className="p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/40 transition-colors">
                               <Download size={12} />
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                           item.isFolder ? 'bg-accent/20 text-accent' : `${fileType!.bg} ${fileType!.color}`
@@ -796,7 +865,8 @@ function FileManager({ onBack }: { onBack: () => void }) {
             >
               <button
                 onClick={() => setIsUploadModalOpen(false)}
-                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-foreground/50 hover:text-foreground transition-colors"
+                aria-label="Close upload modal"
+                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-foreground/50 hover:text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
               >
                 <X size={18} />
               </button>
