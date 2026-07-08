@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://r-drive-bdfb3.web.app/sitemap.xml
+Sitemap: https://zupshare-6896a.web.app/sitemap.xml
