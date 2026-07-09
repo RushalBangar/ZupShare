@@ -410,6 +410,13 @@ function FileManager({ onBack }: { onBack: () => void }) {
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [activeMobileItem, setActiveMobileItem] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => setActiveMobileItem(null);
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -796,10 +803,25 @@ function FileManager({ onBack }: { onBack: () => void }) {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.03, duration: 0.2 }}
                         whileHover={{ y: -3, scale: 1.02 }}
-                        onClick={() => item.isFolder ? handleNavigate(item.fullPath) : handleDownload(item)}
+                        onClick={(e) => {
+                          if (item.isFolder) {
+                            handleNavigate(item.fullPath);
+                          } else {
+                            if (window.innerWidth > 768) {
+                              handleDownload(item);
+                            }
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          if (window.innerWidth <= 768 && !item.isFolder) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setActiveMobileItem(item.fullPath);
+                          }
+                        }}
                         className="glass rounded-xl p-4 cursor-pointer group hover:border-white/20 hover:bg-white/[0.06] hover:shadow-lg transition-all flex flex-col gap-2.5 relative overflow-hidden"
                       >
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+                        <div className={`absolute top-2 right-2 transition-opacity flex gap-1 z-10 ${activeMobileItem === item.fullPath ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
                           {isAdmin && (
                             <button
                               onClick={(e) => handleDelete(e, item)}
@@ -811,7 +833,9 @@ function FileManager({ onBack }: { onBack: () => void }) {
                             </button>
                           )}
                           {!item.isFolder && (
-                            <div className="p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/40 transition-colors">
+                            <div 
+                              onClick={(e) => { e.stopPropagation(); handleDownload(item); }}
+                              className="p-1.5 rounded-lg bg-primary/20 text-primary hover:bg-primary/40 transition-colors cursor-pointer">
                               <Download size={12} />
                             </div>
                           )}
