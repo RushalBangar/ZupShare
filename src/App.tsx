@@ -95,7 +95,13 @@ function Footer() {
             <a href="#how-it-works" className="text-foreground/40 hover:text-foreground/80 transition-colors text-xs">How it Works</a>
             <a href="#" className="text-foreground/40 hover:text-foreground/80 transition-colors text-xs">Upload File</a>
           </div>
-          
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <span className="font-semibold text-foreground/80 text-xs tracking-wider uppercase">Connect</span>
+            <a href="https://twitter.com/rushalbangar" target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-foreground/80 transition-colors text-xs">Twitter / X</a>
+            <a href="https://github.com/rushalbangar" target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-foreground/80 transition-colors text-xs">GitHub</a>
+            <a href="https://linkedin.com/in/rushalbangar" target="_blank" rel="noopener noreferrer" className="text-foreground/40 hover:text-foreground/80 transition-colors text-xs">LinkedIn</a>
+          </div>
+
           <div className="flex flex-col items-center md:items-start gap-2">
             <span className="font-semibold text-foreground/80 text-xs tracking-wider uppercase">Legal</span>
             <a href="#" className="text-foreground/40 hover:text-foreground/80 transition-colors text-xs">Privacy Policy</a>
@@ -106,7 +112,13 @@ function Footer() {
       </div>
       
       <div className="max-w-6xl mx-auto px-6 py-4 border-t border-white/[0.04] flex flex-col sm:flex-row items-center justify-between gap-4">
-        <span className="text-foreground/25 text-xs">© 2026 ZupShare. All rights reserved.</span>
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+          <span className="text-foreground/25 text-xs">© 2026 ZupShare. All rights reserved.</span>
+          <span className="hidden sm:block text-foreground/10 text-xs">•</span>
+          <span className="text-foreground/40 text-xs">
+            Created by <a href="https://twitter.com/rushalbangar" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Rushal Bangar</a> with ❤️
+          </span>
+        </div>
         <div className="flex items-center gap-6 text-xs text-foreground/40">
           <a
             href="https://supabase.com"
@@ -803,12 +815,15 @@ function FileManager({ onBack }: { onBack: () => void }) {
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: i * 0.03, duration: 0.2 }}
                         whileHover={{ y: -3, scale: 1.02 }}
-                        onClick={(e) => {
+                        onClick={() => {
                           if (item.isFolder) {
                             handleNavigate(item.fullPath);
                           } else {
                             if (window.innerWidth > 768) {
                               handleDownload(item);
+                            } else {
+                              const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(item.fullPath);
+                              if (data?.publicUrl) window.open(data.publicUrl, '_blank');
                             }
                           }
                         }}
