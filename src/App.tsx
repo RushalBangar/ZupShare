@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from './supabase';
+import { Upload as TusUpload } from 'tus-js-client';
 import {
   Folder, File as FileIcon, Upload, Plus, ChevronRight, Home,
   Loader2, Download, AlertCircle, X, Image, FileText,
@@ -473,14 +474,23 @@ function FileManager({ onBack }: { onBack: () => void }) {
   }, [addToast]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        const email = prompt('Enter Admin Email:');
+        if (!email) return;
         const pwd = prompt('Enter Admin Password:');
-        if (pwd === import.meta.env.VITE_ADMIN_PASSWORD) {
+        if (!pwd) return;
+        
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password: pwd,
+        });
+
+        if (!error) {
           setIsAdmin(true);
           addToast('success', 'Admin mode enabled');
-        } else if (pwd !== null) {
-          addToast('error', 'Incorrect password');
+        } else {
+          addToast('error', 'Login failed: ' + error.message);
         }
       }
     };
@@ -549,30 +559,58 @@ function FileManager({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const uploadFile = async (file: File) => {
+  const uploadFile = useCallback((file: File) => {
     const MAX_SIZE = 50 * 1024 * 1024; // 50MB
     if (file.size > MAX_SIZE) {
       addToast('error', 'File size exceeds 50MB limit');
       return;
     }
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    const filePath = currentPath ? `${currentPath}/${sanitizedName}` : sanitizedName;
+    const uniqueName = `${Date.now()}_${sanitizedName}`;
+    const filePath = currentPath ? `${currentPath}/${uniqueName}` : uniqueName;
     setIsUploadModalOpen(false);
     setUploadFileName(file.name);
     setUploadProgress(0);
-    try {
-      // Supabase upload progress is simulated or done sequentially
-      const { error } = await supabase.storage.from(BUCKET_NAME).upload(filePath, file, { upsert: true });
-      if (error) throw error;
-      setUploadProgress(100);
-      setTimeout(() => { setUploadProgress(null); setUploadFileName(''); fetchFiles(currentPath); }, 800);
-      addToast('success', `"${file.name}" uploaded successfully`);
-    } catch (err: any) {
-      addToast('error', err.message || 'Upload failed');
-      setUploadProgress(null);
-      setUploadFileName('');
-    }
-  };
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+    const upload = new TusUpload(file, {
+      endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+      retryDelays: [0, 3000, 5000, 10000],
+      headers: {
+        authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      uploadDataDuringCreation: true,
+      removeFingerprintOnSuccess: true,
+      metadata: {
+        bucketName: BUCKET_NAME,
+        objectName: filePath,
+        contentType: file.type || 'application/octet-stream',
+      },
+      chunkSize: 6 * 1024 * 1024,
+      onError: (error) => {
+        addToast('error', error.message || 'Upload failed');
+        setUploadProgress(null);
+        setUploadFileName('');
+      },
+      onProgress: (bytesUploaded, bytesTotal) => {
+        const percentage = (bytesUploaded / bytesTotal) * 100;
+        setUploadProgress(percentage);
+      },
+      onSuccess: () => {
+        setUploadProgress(100);
+        setTimeout(() => { 
+          setUploadProgress(null); 
+          setUploadFileName(''); 
+          fetchFiles(currentPath); 
+        }, 800);
+        addToast('success', `"${file.name}" uploaded successfully`);
+      },
+    });
+
+    upload.start();
+  }, [currentPath, fetchFiles, addToast]);
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) uploadFile(e.target.files[0]);
@@ -583,7 +621,7 @@ function FileManager({ onBack }: { onBack: () => void }) {
     setIsDraggingOver(false);
     const file = e.dataTransfer.files[0];
     if (file) uploadFile(file);
-  }, [currentPath]);
+  }, [uploadFile]);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDraggingOver(true); };
   const handleDragLeave = () => setIsDraggingOver(false);
