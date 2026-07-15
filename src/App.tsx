@@ -6,7 +6,7 @@ import {
   Loader2, Download, AlertCircle, X, Image, FileText,
   Film, Music, Archive, Code, CheckCircle2, FolderOpen,
   Cloud, Shield, Zap, Globe, Users, ArrowRight, ArrowLeft,
-  Sparkles, ExternalLink, Lock, Trash2
+  Sparkles, ExternalLink, Lock, Trash2, Edit2, LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -424,11 +424,39 @@ function FileManager({ onBack }: { onBack: () => void }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [activeMobileItem, setActiveMobileItem] = useState<string | null>(null);
+  
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renamingItem, setRenamingItem] = useState<FileItem | null>(null);
+  const [newRenameName, setNewRenameName] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
 
   useEffect(() => {
     const handleClickOutside = () => setActiveMobileItem(null);
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setIsAdmin(true);
+      } else if (sessionStorage.getItem('zupshare_admin_local') === 'true') {
+        setIsAdmin(true);
+      }
+    };
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setIsAdmin(true);
+      } else if (event === 'SIGNED_OUT') {
+        setIsAdmin(false);
+        sessionStorage.removeItem('zupshare_admin_local');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
 
@@ -476,21 +504,45 @@ function FileManager({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
-        const email = prompt('Enter Admin Email:');
-        if (!email) return;
+        const emailOrPassword = prompt('Enter Admin Email (or Password for local mode):');
+        if (!emailOrPassword) return;
+
+        const localAdminPassword = import.meta.env.VITE_ADMIN_PASSWORD;
+
+        // If user directly enters local password
+        if (localAdminPassword && emailOrPassword === localAdminPassword) {
+          setIsAdmin(true);
+          sessionStorage.setItem('zupshare_admin_local', 'true');
+          addToast('success', 'Admin mode enabled (Local)');
+          return;
+        }
+
+        // Otherwise, ask for password
         const pwd = prompt('Enter Admin Password:');
         if (!pwd) return;
-        
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password: pwd,
-        });
 
-        if (!error) {
+        if (localAdminPassword && pwd === localAdminPassword) {
           setIsAdmin(true);
-          addToast('success', 'Admin mode enabled');
-        } else {
-          addToast('error', 'Login failed: ' + error.message);
+          sessionStorage.setItem('zupshare_admin_local', 'true');
+          addToast('success', 'Admin mode enabled (Local)');
+          return;
+        }
+
+        // Try Supabase authentication
+        try {
+          const { error } = await supabase.auth.signInWithPassword({
+            email: emailOrPassword,
+            password: pwd,
+          });
+
+          if (!error) {
+            setIsAdmin(true);
+            addToast('success', 'Admin mode enabled (Supabase)');
+          } else {
+            addToast('error', 'Login failed: ' + error.message);
+          }
+        } catch (err: any) {
+          addToast('error', 'Login failed: ' + err.message);
         }
       }
     };
@@ -530,6 +582,72 @@ function FileManager({ onBack }: { onBack: () => void }) {
       addToast('error', err.message || 'Failed to delete');
     } finally {
       setIsDeleting(null);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      // Ignored
+    }
+    setIsAdmin(false);
+    sessionStorage.removeItem('zupshare_admin_local');
+    addToast('success', 'Logged out of admin mode');
+  };
+
+  const renameFolderRecursively = async (oldFolderPath: string, newFolderPath: string) => {
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).list(oldFolderPath);
+    if (error) throw error;
+    if (data && data.length > 0) {
+      for (const item of data) {
+        const itemOldPath = `${oldFolderPath}/${item.name}`;
+        const itemNewPath = `${newFolderPath}/${item.name}`;
+        const isFolder = item.id === null;
+        if (isFolder && item.name !== '.keep' && item.name !== '.emptyFolderPlaceholder') {
+          await renameFolderRecursively(itemOldPath, itemNewPath);
+        } else {
+          const { error: moveError } = await supabase.storage.from(BUCKET_NAME).move(itemOldPath, itemNewPath);
+          if (moveError) throw moveError;
+        }
+      }
+    }
+  };
+
+  const handleStartRename = (e: React.MouseEvent, item: FileItem) => {
+    e.stopPropagation();
+    setRenamingItem(item);
+    setNewRenameName(item.name);
+    setIsRenameModalOpen(true);
+  };
+
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renamingItem || !newRenameName.trim() || newRenameName.trim() === renamingItem.name) return;
+
+    setIsRenaming(true);
+    try {
+      const fromPath = renamingItem.fullPath;
+      const pathParts = fromPath.split('/');
+      pathParts[pathParts.length - 1] = newRenameName.trim();
+      const toPath = pathParts.join('/');
+
+      if (renamingItem.isFolder) {
+        await renameFolderRecursively(fromPath, toPath);
+      } else {
+        const { error } = await supabase.storage.from(BUCKET_NAME).move(fromPath, toPath);
+        if (error) throw error;
+      }
+
+      addToast('success', `Renamed "${renamingItem.name}" to "${newRenameName}"`);
+      setIsRenameModalOpen(false);
+      setRenamingItem(null);
+      setNewRenameName('');
+      fetchFiles(currentPath);
+    } catch (err: any) {
+      addToast('error', err.message || 'Failed to rename');
+    } finally {
+      setIsRenaming(false);
     }
   };
 
@@ -743,14 +861,30 @@ function FileManager({ onBack }: { onBack: () => void }) {
             </button>
             <div className="w-px h-6 bg-white/10" />
             <div>
-              <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-accent">
-                ZupShare
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-accent">
+                  ZupShare
+                </h1>
+                {isAdmin && (
+                  <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-semibold uppercase tracking-wider">
+                    Admin
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-foreground/50 mt-0.5">Public file sharing hub · Drag & drop anywhere to upload</p>
             </div>
           </div>
 
           <div className="flex gap-2 self-end sm:self-auto">
+            {isAdmin && (
+              <button
+                id="logout-btn"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 text-red-400 transition-all text-sm font-medium focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none"
+              >
+                <LogOut size={15} /> Logout
+              </button>
+            )}
             <button
               id="new-folder-btn"
               onClick={() => setIsFolderModalOpen(true)}
@@ -876,14 +1010,23 @@ function FileManager({ onBack }: { onBack: () => void }) {
                       >
                         <div className={`absolute top-2 right-2 transition-opacity flex gap-1 z-10 ${activeMobileItem === item.fullPath ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}>
                           {isAdmin && (
-                            <button
-                              onClick={(e) => handleDelete(e, item)}
-                              disabled={isDeleting === item.fullPath}
-                              aria-label={`Delete ${item.name}`}
-                              className="p-1.5 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/40 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none transition-colors"
-                            >
-                              {isDeleting === item.fullPath ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                            </button>
+                            <>
+                              <button
+                                onClick={(e) => handleStartRename(e, item)}
+                                aria-label={`Rename ${item.name}`}
+                                className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500 hover:bg-amber-500/40 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:outline-none transition-colors"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={(e) => handleDelete(e, item)}
+                                disabled={isDeleting === item.fullPath}
+                                aria-label={`Delete ${item.name}`}
+                                className="p-1.5 rounded-lg bg-red-500/20 text-red-500 hover:bg-red-500/40 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:outline-none transition-colors"
+                              >
+                                {isDeleting === item.fullPath ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                              </button>
+                            </>
                           )}
                           {!item.isFolder && (
                             <div 
@@ -1030,6 +1173,68 @@ function FileManager({ onBack }: { onBack: () => void }) {
                     className="px-5 py-2 rounded-xl bg-primary hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-all text-sm font-semibold shadow-lg shadow-primary/20"
                   >
                     Create
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Rename Modal */}
+      <AnimatePresence>
+        {isRenameModalOpen && renamingItem && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && !isRenaming && setIsRenameModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="glass-panel w-full max-w-sm p-6 rounded-2xl relative"
+            >
+              <button
+                disabled={isRenaming}
+                onClick={() => setIsRenameModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-lg hover:bg-white/10 text-foreground/50 hover:text-foreground transition-colors disabled:opacity-50"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-500">
+                  <Edit2 size={18} />
+                </div>
+                <h3 className="text-base font-bold">Rename {renamingItem.isFolder ? 'Folder' : 'File'}</h3>
+              </div>
+
+              <form onSubmit={handleRename}>
+                <input
+                  type="text"
+                  disabled={isRenaming}
+                  value={newRenameName}
+                  onChange={(e) => setNewRenameName(e.target.value)}
+                  placeholder="New name"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 outline-none focus:border-primary focus:bg-white/[0.08] transition-all text-sm placeholder:text-foreground/30 text-foreground"
+                  autoFocus
+                />
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    disabled={isRenaming}
+                    onClick={() => setIsRenameModalOpen(false)}
+                    className="px-4 py-2 rounded-xl hover:bg-white/10 transition-colors text-sm font-medium text-foreground/70 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isRenaming || !newRenameName.trim() || newRenameName.trim() === renamingItem.name}
+                    className="px-5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed border border-amber-500/30 transition-all text-sm font-semibold shadow-lg"
+                  >
+                    {isRenaming ? 'Renaming...' : 'Rename'}
                   </button>
                 </div>
               </form>
