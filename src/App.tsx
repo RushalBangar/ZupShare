@@ -588,7 +588,7 @@ function FileManager({ onBack }: { onBack: () => void }) {
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
-    } catch (err) {
+    } catch {
       // Ignored
     }
     setIsAdmin(false);
