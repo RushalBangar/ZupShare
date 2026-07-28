@@ -828,7 +828,13 @@ function ThreeUniverseBackground() {
     };
   }, []);
 
-  return <div ref={containerRef} className="fixed inset-0 w-full h-full pointer-events-none -z-10 mix-blend-screen opacity-90" />;
+  return (
+    <>
+      <div ref={containerRef} className="fixed inset-0 w-full h-full pointer-events-none -z-20 mix-blend-screen opacity-35" />
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_25%,#031427_85%)] -z-10" />
+      <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-[#031427]/50 via-transparent to-[#031427]/95 -z-10" />
+    </>
+  );
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
