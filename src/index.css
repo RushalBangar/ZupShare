@@ -82,6 +82,15 @@
   animation: fade-up 0.6s ease-out forwards;
 }
 
+/* Scrollbar Utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Page Transitions */
 @utility transition-page {
   view-transition-name: page-content;

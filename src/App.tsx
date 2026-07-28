@@ -606,6 +606,8 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
   }, []);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only apply 3D tilt on desktop screens (>768px)
+    if (window.innerWidth < 768) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
@@ -628,17 +630,17 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
     <div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="w-full relative flex items-center justify-center py-6 select-none"
+      className="w-full relative flex items-center justify-center py-2 sm:py-6 select-none"
       style={{ perspective: '1000px' }}
     >
       {/* Background Ambient Glow */}
-      <div className="absolute w-72 h-72 bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 rounded-full blur-[80px] pointer-events-none -z-10" />
+      <div className="absolute w-60 sm:w-72 h-60 sm:h-72 bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 rounded-full blur-[70px] sm:blur-[80px] pointer-events-none -z-10" />
 
-      {/* Floating Badges (Outside Card) */}
+      {/* Floating Badges (Desktop/Tablet) */}
       <motion.div
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute -top-3 -left-3 z-30 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-cyan-300 text-xs font-semibold shadow-xl backdrop-blur-md"
+        className="absolute -top-3 -left-3 z-30 hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-cyan-300 text-xs font-semibold shadow-xl backdrop-blur-md"
       >
         <Zap size={14} className="text-cyan-400 fill-cyan-400/20" />
         <span>⚡ 140 MB/s Tus Upload</span>
@@ -647,7 +649,7 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
       <motion.div
         animate={{ y: [0, 8, 0] }}
         transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
-        className="absolute -bottom-4 -right-2 z-30 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-purple-500/30 text-purple-300 text-xs font-semibold shadow-xl backdrop-blur-md"
+        className="absolute -bottom-4 -right-2 z-30 hidden md:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-purple-500/30 text-purple-300 text-xs font-semibold shadow-xl backdrop-blur-md"
       >
         <ShieldCheck size={14} className="text-purple-400" />
         <span>🔒 AES-256 Encrypted</span>
@@ -662,35 +664,37 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
         }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         onClick={onGetStarted}
-        className="w-full max-w-md bg-slate-950/80 backdrop-blur-2xl rounded-3xl border border-cyan-500/25 p-5 sm:p-6 shadow-[0_0_60px_rgba(0,242,255,0.18)] cursor-pointer group hover:border-cyan-400/50 transition-colors"
+        className="w-full max-w-md bg-slate-950/85 backdrop-blur-2xl rounded-2xl sm:rounded-3xl border border-cyan-500/25 p-4 sm:p-6 shadow-[0_0_50px_rgba(0,242,255,0.15)] cursor-pointer group hover:border-cyan-400/50 transition-colors"
       >
         {/* Top Window Header Bar */}
-        <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-cyan-400/80 shadow-[0_0_8px_rgba(0,242,255,0.6)]" />
-            <span className="w-3 h-3 rounded-full bg-purple-400/80" />
-            <span className="w-3 h-3 rounded-full bg-slate-600" />
-            <span className="ml-2 text-xs font-mono font-medium text-foreground/50">ZupShare Vault v2.4</span>
+        <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-white/10">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-cyan-400/80 shadow-[0_0_8px_rgba(0,242,255,0.6)]" />
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-purple-400/80" />
+            <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-slate-600" />
+            <span className="ml-1 sm:ml-2 text-[11px] sm:text-xs font-mono font-medium text-foreground/50">ZupShare Vault</span>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 font-semibold uppercase tracking-wider flex items-center gap-1">
+          <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[9px] sm:text-[10px] font-mono text-cyan-300 font-semibold uppercase tracking-wider flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping" />
             Live Hub
           </span>
         </div>
 
         {/* Live Upload Progress Widget */}
-        <div className="p-3.5 rounded-2xl bg-cyan-500/5 border border-cyan-500/15 mb-4 relative overflow-hidden">
+        <div className="p-3 sm:p-3.5 rounded-xl sm:rounded-2xl bg-cyan-500/5 border border-cyan-500/15 mb-3 sm:mb-4 relative overflow-hidden">
           <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300">
-                <Archive size={16} />
+            <div className="flex items-center gap-2 sm:gap-2.5">
+              <div className="p-1.5 sm:p-2 rounded-lg bg-cyan-500/20 text-cyan-300">
+                <Archive size={14} className="sm:w-4 sm:h-4" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-semibold text-white truncate max-w-[170px]">project_assets_v3.zip</span>
-                <span className="text-[10px] text-foreground/50 font-mono">98.4 MB • Tus Upload</span>
+                <span className="text-[11px] sm:text-xs font-semibold text-white truncate max-w-[130px] xs:max-w-[160px] sm:max-w-[180px]">
+                  project_assets_v3.zip
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-foreground/50 font-mono">98.4 MB • Tus Upload</span>
               </div>
             </div>
-            <span className="text-xs font-mono font-bold text-cyan-400">{uploadPercent}%</span>
+            <span className="text-[11px] sm:text-xs font-mono font-bold text-cyan-400">{uploadPercent}%</span>
           </div>
 
           <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -703,8 +707,8 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
         </div>
 
         {/* Mock Files Stream */}
-        <div className="space-y-2 mb-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground/40 px-1 mb-1 flex items-center justify-between">
+        <div className="space-y-2 mb-3.5 sm:mb-4">
+          <div className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-foreground/40 px-1 mb-1 flex items-center justify-between">
             <span>Recent Public Shares</span>
             <span>Public CDN</span>
           </div>
@@ -716,25 +720,25 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
           ].map((file) => (
             <div
               key={file.id}
-              className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 transition-colors group/item"
+              className="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 transition-colors group/item"
             >
-              <div className="flex items-center gap-2.5">
-                <div className={`p-2 rounded-lg ${file.bg} ${file.color}`}>
-                  <file.icon size={15} />
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 pr-2">
+                <div className={`p-1.5 sm:p-2 rounded-lg ${file.bg} ${file.color} shrink-0`}>
+                  <file.icon size={14} className="sm:w-[15px] sm:h-[15px]" />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-xs font-medium text-foreground/90 group-hover/item:text-white transition-colors">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[11px] sm:text-xs font-medium text-foreground/90 group-hover/item:text-white transition-colors truncate">
                     {file.name}
                   </span>
-                  <span className="text-[10px] text-foreground/40">{file.size}</span>
+                  <span className="text-[9px] sm:text-[10px] text-foreground/40">{file.size}</span>
                 </div>
               </div>
 
               <button
                 onClick={(e) => handleCopyLink(file.id, e)}
-                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/40 text-[11px] text-foreground/70 hover:text-cyan-300 font-medium transition-all flex items-center gap-1"
+                className="px-2 sm:px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/40 text-[10px] sm:text-[11px] text-foreground/70 hover:text-cyan-300 font-medium transition-all flex items-center gap-1 shrink-0"
               >
-                {copiedId === file.id ? <Check size={12} className="text-teal-400" /> : <Copy size={12} />}
+                {copiedId === file.id ? <Check size={11} className="text-teal-400" /> : <Copy size={11} />}
                 <span>{copiedId === file.id ? 'Copied' : 'Share'}</span>
               </button>
             </div>
@@ -742,13 +746,13 @@ function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
         </div>
 
         {/* Interactive Call to Action Bar */}
-        <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan-500/15 to-blue-500/15 border border-cyan-500/30 flex items-center justify-between group-hover:border-cyan-400 transition-all">
-          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-300">
-            <Upload size={15} className="animate-bounce text-cyan-400" />
-            <span>Click to Launch Storage Drive</span>
+        <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-r from-cyan-500/15 to-blue-500/15 border border-cyan-500/30 flex items-center justify-between group-hover:border-cyan-400 transition-all">
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold text-cyan-300">
+            <Upload size={14} className="animate-bounce text-cyan-400 shrink-0" />
+            <span className="truncate">Click to Launch Storage Drive</span>
           </div>
-          <div className="p-1.5 rounded-xl bg-cyan-400 text-slate-950 group-hover:translate-x-1 transition-transform">
-            <ArrowRight size={14} />
+          <div className="p-1 sm:p-1.5 rounded-lg sm:rounded-xl bg-cyan-400 text-slate-950 group-hover:translate-x-1 transition-transform shrink-0">
+            <ArrowRight size={13} className="sm:w-3.5 sm:h-3.5" />
           </div>
         </div>
       </motion.div>
@@ -776,11 +780,11 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-6xl rounded-2xl border border-white/10 bg-background/80 backdrop-blur-xl shadow-[0_0_30px_rgba(0,242,255,0.15)] z-50 px-6 py-3.5 flex justify-between items-center"
+        className="fixed top-3 sm:top-4 left-1/2 -translate-x-1/2 w-[94%] sm:w-[92%] max-w-6xl rounded-2xl border border-white/10 bg-background/85 backdrop-blur-xl shadow-[0_0_30px_rgba(0,242,255,0.15)] z-50 px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex justify-between items-center"
       >
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="ZupShare Logo" className="h-8 w-8 object-contain rounded-xl shadow-lg shadow-cyan-500/30" />
-          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400 font-jakarta">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <img src="/logo.png" alt="ZupShare Logo" className="h-7 sm:h-8 w-7 sm:w-8 object-contain rounded-xl shadow-lg shadow-cyan-500/30" />
+          <span className="font-bold text-base sm:text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400 font-jakarta">
             ZupShare
           </span>
         </div>
@@ -791,17 +795,17 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           <a href="#how-it-works" className="hover:text-cyan-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">Protocol</a>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-1.5 text-cyan-300 hover:text-white font-semibold text-xs px-3.5 py-2 hover:bg-white/5 rounded-xl transition-all"
+            className="flex items-center gap-1 text-cyan-300 hover:text-white font-semibold text-xs px-2.5 sm:px-3.5 py-2 hover:bg-white/5 rounded-xl transition-all"
           >
-            <Lock size={13} className="text-cyan-400" />
-            Sign In
+            <Lock size={12} className="text-cyan-400 shrink-0" />
+            <span>Sign In</span>
           </button>
           <button
             onClick={onGetStarted}
-            className="bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl glow-effect transition-all shadow-lg"
+            className="bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-bold text-xs px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl glow-effect transition-all shadow-lg shrink-0"
           >
             Launch Drive
           </button>
@@ -809,13 +813,13 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
       </motion.nav>
 
       {/* ── 2-Column Hero Section ── */}
-      <section className="relative flex-1 max-w-6xl mx-auto w-full px-6 pt-36 pb-16 min-h-[85vh] flex items-center">
+      <section className="relative flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 pt-28 sm:pt-36 pb-12 sm:pb-16 min-h-[80vh] sm:min-h-[85vh] flex items-center">
         {/* Floating file icons */}
         {floatingIcons.map((fi, i) => (
           <FloatingIcon key={i} {...fi} />
         ))}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10 items-center w-full">
           {/* Left Column: Hero Copy */}
           <div className="lg:col-span-7 flex flex-col items-start text-left z-10">
             {/* Status Badge */}
@@ -823,13 +827,13 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-4 sm:mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)] max-w-full overflow-hidden"
             >
-              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
-              <Sparkles size={13} className="text-cyan-400" />
-              <span className="text-cyan-300 font-mono text-[11px]">System Status: Optimal</span>
-              <span className="text-foreground/30">|</span>
-              <span>The Universe of Secure Storage</span>
+              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0"></span>
+              <Sparkles size={13} className="text-cyan-400 shrink-0" />
+              <span className="text-cyan-300 font-mono text-[10px] sm:text-[11px] truncate">System Status: Optimal</span>
+              <span className="text-foreground/30 hidden xs:inline">|</span>
+              <span className="hidden xs:inline truncate">Secure Storage</span>
             </motion.div>
 
             {/* Headline */}
@@ -837,7 +841,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
-              className="text-5xl sm:text-6xl font-extrabold tracking-tighter leading-[1.08] font-jakarta text-white drop-shadow-2xl"
+              className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter leading-[1.1] font-jakarta text-white drop-shadow-2xl"
             >
               ZupShare:
               <br />
@@ -849,7 +853,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35, duration: 0.6 }}
-              className="mt-6 text-base sm:text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
+              className="mt-4 sm:mt-6 text-sm sm:text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
             >
               Encrypted. Ethereal. Infinite. Experience the ultimate cloud storage architecture designed for universal data operations.
             </motion.p>
@@ -859,18 +863,18 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="mt-8 flex flex-wrap items-center gap-4"
+              className="mt-6 sm:mt-8 flex flex-col xs:flex-row items-stretch xs:items-center gap-3.5 w-full xs:w-auto"
             >
               <button
                 onClick={onGetStarted}
-                className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
+                className="group relative flex items-center justify-center gap-3 px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-600 text-slate-950 font-bold text-sm sm:text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
               >
                 <span>Launch Drive 🚀</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
               </button>
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-2.5 px-7 py-4 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
+                className="flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3.5 sm:py-4 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-sm sm:text-base transition-all duration-200"
               >
                 <ShieldCheck size={18} className="text-cyan-400" />
                 Security Protocol 🔒
@@ -882,7 +886,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.7 }}
-              className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6 w-full pt-8 border-t border-white/10"
+              className="mt-8 sm:mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 w-full pt-6 sm:pt-8 border-t border-white/10"
             >
               {[
                 { val: '6,000+', label: 'Cosmic Node Stars' },
@@ -891,8 +895,8 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
                 { val: '∞', label: 'Cosmic Capacity' },
               ].map((s, i) => (
                 <div key={i} className="flex flex-col items-start">
-                  <span className="text-xl sm:text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
-                  <span className="text-xs text-foreground/40 mt-0.5">{s.label}</span>
+                  <span className="text-lg sm:text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
+                  <span className="text-[10px] sm:text-xs text-foreground/40 mt-0.5">{s.label}</span>
                 </div>
               ))}
             </motion.div>
@@ -903,7 +907,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4, duration: 0.7 }}
-            className="lg:col-span-5 relative flex justify-center items-center"
+            className="lg:col-span-5 relative flex justify-center items-center w-full"
           >
             <HeroInteractiveVisual onGetStarted={onGetStarted} />
           </motion.div>
@@ -1423,7 +1427,7 @@ function FileManager({ onBack, authUser, onLogout, onOpenAuth }: { onBack: () =>
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 text-xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full sm:w-auto pb-1 sm:pb-0 text-xs shrink-0">
             {(['all', 'photos', 'videos', 'documents', 'archives', 'starred'] as Category[]).map(cat => (
               <button
                 key={cat}
