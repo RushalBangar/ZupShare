@@ -1315,40 +1315,42 @@ function FileManager({ onBack, authUser, onLogout, onOpenAuth }: { onBack: () =>
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-panel px-6 py-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+          className="glass-panel p-4 sm:px-6 sm:py-4 rounded-2xl flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3.5"
         >
-          <div className="flex items-center gap-3">
-            <button onClick={onBack} title="Back to landing" className="p-2 rounded-xl hover:bg-white/10 text-foreground/40 hover:text-foreground transition-colors">
-              <ArrowLeft size={18} />
-            </button>
-            <div className="w-px h-6 bg-white/10" />
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-accent">
-                  ZupShare
-                </h1>
-                {spaceMode === 'private' && (
-                  <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-semibold flex items-center gap-1">
-                    <Lock size={10} /> Safe Space
-                  </span>
-                )}
+          <div className="flex items-center justify-between sm:justify-start gap-3">
+            <div className="flex items-center gap-2.5">
+              <button onClick={onBack} title="Back to landing" className="p-2 rounded-xl hover:bg-white/10 text-foreground/40 hover:text-foreground transition-colors shrink-0">
+                <ArrowLeft size={18} />
+              </button>
+              <div className="w-px h-6 bg-white/10 shrink-0" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg sm:text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-400 to-accent">
+                    ZupShare
+                  </h1>
+                  {spaceMode === 'private' && (
+                    <span className="px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-semibold flex items-center gap-1">
+                      <Lock size={10} /> Safe Space
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] sm:text-xs text-foreground/50 truncate max-w-[200px] xs:max-w-[260px] sm:max-w-none">
+                  {spaceMode === 'public' ? 'Public File Sharing Hub' : `Secured Private Drive (${authUser?.email || 'Protected'})`}
+                </p>
               </div>
-              <p className="text-xs text-foreground/50 mt-0.5">
-                {spaceMode === 'public' ? 'Public File Sharing Hub' : `Secured Private Drive (${authUser?.email || 'Protected'})`}
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap justify-between sm:justify-end w-full sm:w-auto">
             {/* Space Mode Switcher */}
-            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 text-xs">
+            <div className="flex bg-white/5 border border-white/10 rounded-xl p-1 text-xs shrink-0">
               <button
                 onClick={() => { setSpaceMode('public'); setCurrentPath(''); }}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 sm:gap-1.5 text-xs ${
                   spaceMode === 'public' ? 'bg-primary text-white shadow' : 'text-foreground/60 hover:text-foreground'
                 }`}
               >
-                <Globe size={13} /> Public
+                <Globe size={12} className="sm:w-3.5 sm:h-3.5" /> Public
               </button>
               <button
                 onClick={() => {
@@ -1356,31 +1358,33 @@ function FileManager({ onBack, authUser, onLogout, onOpenAuth }: { onBack: () =>
                   setSpaceMode('private');
                   setCurrentPath('');
                 }}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center gap-1 sm:gap-1.5 text-xs ${
                   spaceMode === 'private' ? 'bg-violet-600 text-white shadow' : 'text-foreground/60 hover:text-foreground'
                 }`}
               >
-                <Lock size={13} /> Safe Space 🔒
+                <Lock size={12} className="sm:w-3.5 sm:h-3.5" /> Safe Space 🔒
               </button>
             </div>
 
-            {authUser ? (
-              <button onClick={onLogout} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-foreground/70 hover:text-foreground text-xs font-medium transition-colors">
-                <LogOut size={13} /> Logout
-              </button>
-            ) : (
-              <button onClick={onOpenAuth} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 text-xs font-semibold transition-colors">
-                <Key size={13} /> Sign In
-              </button>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {authUser ? (
+                <button onClick={onLogout} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-foreground/70 hover:text-foreground text-xs font-medium transition-colors">
+                  <LogOut size={12} /> <span className="hidden xs:inline">Logout</span>
+                </button>
+              ) : (
+                <button onClick={onOpenAuth} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 text-xs font-semibold transition-colors">
+                  <Key size={12} /> <span className="hidden xs:inline">Sign In</span>
+                </button>
+              )}
 
-            <button onClick={() => setIsFolderModalOpen(true)} className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium transition-colors">
-              <Plus size={14} /> Folder
-            </button>
+              <button onClick={() => setIsFolderModalOpen(true)} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium transition-colors">
+                <Plus size={13} /> <span>Folder</span>
+              </button>
 
-            <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-primary/20 transition-all">
-              <Upload size={14} /> Upload
-            </button>
+              <button onClick={() => setIsUploadModalOpen(true)} className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-primary hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-primary/20 transition-all">
+                <Upload size={13} /> <span>Upload</span>
+              </button>
+            </div>
           </div>
         </motion.div>
 
@@ -1482,13 +1486,13 @@ function FileManager({ onBack, authUser, onLogout, onOpenAuth }: { onBack: () =>
                 </button>
               </div>
             ) : loading ? (
-              <div className="h-full flex flex-col items-center justify-center min-h-[350px] gap-3">
-                <Loader2 className="animate-spin text-primary" size={36} />
-                <p className="text-sm text-foreground/40">Loading items...</p>
+              <div className="flex-1 flex items-center justify-center p-12 text-foreground/40 gap-2">
+                <Loader2 className="animate-spin text-primary" size={20} />
+                <span className="text-xs">Loading items...</span>
               </div>
             ) : filteredItems.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center min-h-[350px] gap-4 text-center">
-                <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/[0.07]">
+              <div className="h-full flex flex-col items-center justify-center p-12 text-center my-auto">
+                <div className="p-6 rounded-3xl bg-white/[0.03] border border-white/[0.07] mb-3">
                   <FolderOpen size={48} className="text-foreground/20" />
                 </div>
                 <div>
@@ -1497,7 +1501,7 @@ function FileManager({ onBack, authUser, onLogout, onOpenAuth }: { onBack: () =>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 <AnimatePresence>
                   {filteredItems.map((item, i) => {
                     const fileType = item.isFolder ? null : getFileIcon(item.name);
