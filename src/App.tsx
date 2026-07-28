@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import * as THREE from 'three';
 import { supabase } from './supabase';
 import { Upload as TusUpload } from 'tus-js-client';
 import {
@@ -591,282 +590,170 @@ function DeepSpaceBackground() {
   );
 }
 
-// ─── 3D Holographic Data Orb for Hero Section ─────────────────────────────────
-function StellarCoreCanvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
+// ─── Interactive Product Vault Visualizer for Hero Section ────────────────────
+function HeroInteractiveVisual({ onGetStarted }: { onGetStarted: () => void }) {
+  const [rotateX, setRotateX] = useState(0);
+  const [rotateY, setRotateY] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [uploadPercent, setUploadPercent] = useState(74);
 
+  // Simulate subtle live progress animation
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let animId: number;
-    const width = container.clientWidth || 500;
-    const height = container.clientHeight || 500;
-
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.set(0, 0.3, 5.5);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    // ── Lighting ──
-    scene.add(new THREE.AmbientLight(0x88ccff, 0.3));
-
-    const mainLight = new THREE.PointLight(0x00d4ff, 4, 20);
-    mainLight.position.set(3, 4, 5);
-    scene.add(mainLight);
-
-    const accentLight = new THREE.PointLight(0x7c3aed, 2.5, 18);
-    accentLight.position.set(-3, -1, 4);
-    scene.add(accentLight);
-
-    const coreGroup = new THREE.Group();
-    scene.add(coreGroup);
-
-    // ── Custom Fresnel Glow Shader for Main Orb ──
-    const fresnelVertexShader = `
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        vViewPosition = -mvPosition.xyz;
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `;
-
-    const fresnelFragmentShader = `
-      uniform vec3 uColor;
-      uniform vec3 uRimColor;
-      uniform float uRimPower;
-      uniform float uOpacity;
-      uniform float uTime;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-      void main() {
-        vec3 viewDir = normalize(vViewPosition);
-        float fresnel = 1.0 - abs(dot(viewDir, vNormal));
-        fresnel = pow(fresnel, uRimPower);
-        
-        // Subtle animated surface pattern
-        float pattern = sin(vNormal.x * 8.0 + uTime * 0.5) * sin(vNormal.y * 8.0 - uTime * 0.3) * 0.08;
-        
-        vec3 color = mix(uColor, uRimColor, fresnel) + pattern;
-        float alpha = mix(uOpacity * 0.3, uOpacity, fresnel);
-        gl_FragColor = vec4(color, alpha);
-      }
-    `;
-
-    // ── Main Holographic Orb (Fresnel Shader) ──
-    const orbGeom = new THREE.SphereGeometry(1.6, 80, 80);
-    const orbMat = new THREE.ShaderMaterial({
-      vertexShader: fresnelVertexShader,
-      fragmentShader: fresnelFragmentShader,
-      uniforms: {
-        uColor: { value: new THREE.Color(0x041525) },
-        uRimColor: { value: new THREE.Color(0x00d4ff) },
-        uRimPower: { value: 2.5 },
-        uOpacity: { value: 0.95 },
-        uTime: { value: 0 },
-      },
-      transparent: true,
-      side: THREE.FrontSide,
-      depthWrite: false,
-    });
-    const orb = new THREE.Mesh(orbGeom, orbMat);
-    coreGroup.add(orb);
-
-    // ── Outer Glow Shell (larger, fainter) ──
-    const glowGeom = new THREE.SphereGeometry(1.85, 48, 48);
-    const glowMat = new THREE.ShaderMaterial({
-      vertexShader: fresnelVertexShader,
-      fragmentShader: fresnelFragmentShader,
-      uniforms: {
-        uColor: { value: new THREE.Color(0x020e1a) },
-        uRimColor: { value: new THREE.Color(0x00d4ff) },
-        uRimPower: { value: 3.5 },
-        uOpacity: { value: 0.5 },
-        uTime: { value: 0 },
-      },
-      transparent: true,
-      side: THREE.FrontSide,
-      depthWrite: false,
-    });
-    const glowShell = new THREE.Mesh(glowGeom, glowMat);
-    coreGroup.add(glowShell);
-
-    // ── Atmosphere Haze (outermost soft glow) ──
-    const hazeGeom = new THREE.SphereGeometry(2.1, 32, 32);
-    const hazeMat = new THREE.ShaderMaterial({
-      vertexShader: fresnelVertexShader,
-      fragmentShader: fresnelFragmentShader,
-      uniforms: {
-        uColor: { value: new THREE.Color(0x000000) },
-        uRimColor: { value: new THREE.Color(0x7c3aed) },
-        uRimPower: { value: 4.5 },
-        uOpacity: { value: 0.25 },
-        uTime: { value: 0 },
-      },
-      transparent: true,
-      side: THREE.FrontSide,
-      depthWrite: false,
-    });
-    const haze = new THREE.Mesh(hazeGeom, hazeMat);
-    coreGroup.add(haze);
-
-    // ── Single Clean Orbital Ring (particle trail) ──
-    const ringParticleCount = 200;
-    const ringPositions = new Float32Array(ringParticleCount * 3);
-    const ringOpacities = new Float32Array(ringParticleCount);
-    const ringRadius = 2.4;
-    for (let i = 0; i < ringParticleCount; i++) {
-      const angle = (i / ringParticleCount) * Math.PI * 2;
-      const jitter = (Math.random() - 0.5) * 0.04;
-      ringPositions[i * 3] = Math.cos(angle) * (ringRadius + jitter);
-      ringPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.06;
-      ringPositions[i * 3 + 2] = Math.sin(angle) * (ringRadius + jitter);
-      ringOpacities[i] = 0.3 + Math.random() * 0.7;
-    }
-    const ringGeom = new THREE.BufferGeometry();
-    ringGeom.setAttribute('position', new THREE.BufferAttribute(ringPositions, 3));
-    const ringMat = new THREE.PointsMaterial({
-      color: 0x00d4ff,
-      size: 0.025,
-      transparent: true,
-      opacity: 0.8,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const ringPoints = new THREE.Points(ringGeom, ringMat);
-    ringPoints.rotation.x = Math.PI * 0.38;
-    ringPoints.rotation.z = -0.15;
-    coreGroup.add(ringPoints);
-
-    // ── Data Nodes (small glowing spheres orbiting) ──
-    const nodeGroup = new THREE.Group();
-    nodeGroup.rotation.x = Math.PI * 0.38;
-    nodeGroup.rotation.z = -0.15;
-    coreGroup.add(nodeGroup);
-
-    const nodes: { mesh: THREE.Mesh; angle: number; speed: number; radius: number }[] = [];
-    for (let i = 0; i < 5; i++) {
-      const nodeGeom = new THREE.SphereGeometry(0.05 + Math.random() * 0.04, 16, 16);
-      const nodeMat = new THREE.MeshBasicMaterial({
-        color: i % 2 === 0 ? 0x00d4ff : 0x7c3aed,
-        transparent: true,
-        opacity: 0.9,
-      });
-      const node = new THREE.Mesh(nodeGeom, nodeMat);
-      const angle = (i / 5) * Math.PI * 2;
-      node.position.set(
-        Math.cos(angle) * ringRadius,
-        0,
-        Math.sin(angle) * ringRadius
-      );
-      nodeGroup.add(node);
-      nodes.push({ mesh: node, angle, speed: 0.15 + Math.random() * 0.1, radius: ringRadius });
-    }
-
-    // ── Ambient Floating Particles ──
-    const ambientCount = 60;
-    const ambientPositions = new Float32Array(ambientCount * 3);
-    for (let i = 0; i < ambientCount; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 2.0 + Math.random() * 1.8;
-      ambientPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      ambientPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      ambientPositions[i * 3 + 2] = r * Math.cos(phi);
-    }
-    const ambientGeom = new THREE.BufferGeometry();
-    ambientGeom.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
-    const ambientMat = new THREE.PointsMaterial({
-      color: 0x38bdf8,
-      size: 0.02,
-      transparent: true,
-      opacity: 0.5,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const ambientParticles = new THREE.Points(ambientGeom, ambientMat);
-    coreGroup.add(ambientParticles);
-
-    // ── Mouse Tracking ──
-    let mouseX = 0;
-    let mouseY = 0;
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = container.getBoundingClientRect();
-      mouseX = ((e.clientX - rect.left) / rect.width) - 0.5;
-      mouseY = ((e.clientY - rect.top) / rect.height) - 0.5;
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-
-    const handleResize = () => {
-      const w = container.clientWidth || 500;
-      const h = container.clientHeight || 500;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', handleResize);
-
-    // ── Animation Loop ──
-    const clock = new THREE.Clock();
-    const animate = () => {
-      const t = clock.getElapsedTime();
-
-      // Update shader time uniforms
-      orbMat.uniforms.uTime.value = t;
-      glowMat.uniforms.uTime.value = t;
-      hazeMat.uniforms.uTime.value = t;
-
-      // Slow elegant rotation
-      coreGroup.rotation.y += 0.002;
-
-      // Subtle orb breathing
-      const breathe = 1 + Math.sin(t * 0.8) * 0.02;
-      orb.scale.setScalar(breathe);
-      glowShell.scale.setScalar(breathe * 1.01);
-
-      // Orbital ring rotation
-      ringPoints.rotation.y += 0.004;
-      nodeGroup.rotation.y += 0.004;
-
-      // Animate data nodes along orbit
-      nodes.forEach(n => {
-        n.angle += n.speed * 0.016;
-        n.mesh.position.x = Math.cos(n.angle) * n.radius;
-        n.mesh.position.z = Math.sin(n.angle) * n.radius;
-      });
-
-      // Ambient particles gentle drift
-      ambientParticles.rotation.y += 0.001;
-      ambientParticles.rotation.x += 0.0005;
-
-      // Smooth mouse parallax
-      coreGroup.position.x += (mouseX * 1.0 - coreGroup.position.x) * 0.04;
-      coreGroup.position.y += (-mouseY * 0.8 - coreGroup.position.y) * 0.04;
-
-      renderer.render(scene, camera);
-      animId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-      renderer.dispose();
-    };
+    const interval = setInterval(() => {
+      setUploadPercent((prev) => (prev >= 98 ? 65 : prev + 1));
+    }, 400);
+    return () => clearInterval(interval);
   }, []);
 
-  return <div ref={containerRef} className="w-full h-[420px] sm:h-[480px] flex items-center justify-center filter drop-shadow-[0_0_80px_rgba(0,212,255,0.35)] pointer-events-auto" />;
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    setRotateX(-y * 0.04);
+    setRotateY(x * 0.04);
+  };
+
+  const handleMouseLeave = () => {
+    setRotateX(0);
+    setRotateY(0);
+  };
+
+  const handleCopyLink = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  return (
+    <div
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      className="w-full relative flex items-center justify-center py-6 select-none"
+      style={{ perspective: '1000px' }}
+    >
+      {/* Background Ambient Glow */}
+      <div className="absolute w-72 h-72 bg-gradient-to-tr from-cyan-500/20 to-purple-500/20 rounded-full blur-[80px] pointer-events-none -z-10" />
+
+      {/* Floating Badges (Outside Card) */}
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        className="absolute -top-3 -left-3 z-30 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-cyan-300 text-xs font-semibold shadow-xl backdrop-blur-md"
+      >
+        <Zap size={14} className="text-cyan-400 fill-cyan-400/20" />
+        <span>⚡ 140 MB/s Tus Upload</span>
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, 8, 0] }}
+        transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+        className="absolute -bottom-4 -right-2 z-30 hidden sm:flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-purple-500/30 text-purple-300 text-xs font-semibold shadow-xl backdrop-blur-md"
+      >
+        <ShieldCheck size={14} className="text-purple-400" />
+        <span>🔒 AES-256 Encrypted</span>
+      </motion.div>
+
+      {/* Main Glassmorphic Dashboard Card */}
+      <motion.div
+        style={{
+          rotateX,
+          rotateY,
+          transformStyle: 'preserve-3d',
+        }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        onClick={onGetStarted}
+        className="w-full max-w-md bg-slate-950/80 backdrop-blur-2xl rounded-3xl border border-cyan-500/25 p-5 sm:p-6 shadow-[0_0_60px_rgba(0,242,255,0.18)] cursor-pointer group hover:border-cyan-400/50 transition-colors"
+      >
+        {/* Top Window Header Bar */}
+        <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-cyan-400/80 shadow-[0_0_8px_rgba(0,242,255,0.6)]" />
+            <span className="w-3 h-3 rounded-full bg-purple-400/80" />
+            <span className="w-3 h-3 rounded-full bg-slate-600" />
+            <span className="ml-2 text-xs font-mono font-medium text-foreground/50">ZupShare Vault v2.4</span>
+          </div>
+          <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 font-semibold uppercase tracking-wider flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-ping" />
+            Live Hub
+          </span>
+        </div>
+
+        {/* Live Upload Progress Widget */}
+        <div className="p-3.5 rounded-2xl bg-cyan-500/5 border border-cyan-500/15 mb-4 relative overflow-hidden">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300">
+                <Archive size={16} />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-white truncate max-w-[170px]">project_assets_v3.zip</span>
+                <span className="text-[10px] text-foreground/50 font-mono">98.4 MB • Tus Upload</span>
+              </div>
+            </div>
+            <span className="text-xs font-mono font-bold text-cyan-400">{uploadPercent}%</span>
+          </div>
+
+          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-cyan-400 to-teal-400 rounded-full"
+              style={{ width: `${uploadPercent}%` }}
+              transition={{ ease: 'easeOut' }}
+            />
+          </div>
+        </div>
+
+        {/* Mock Files Stream */}
+        <div className="space-y-2 mb-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-foreground/40 px-1 mb-1 flex items-center justify-between">
+            <span>Recent Public Shares</span>
+            <span>Public CDN</span>
+          </div>
+
+          {[
+            { id: 'f1', name: 'galaxy_highres.png', size: '14.2 MB', icon: Image, color: 'text-pink-400', bg: 'bg-pink-500/15' },
+            { id: 'f2', name: 'quantum_engine.ts', size: '24 KB', icon: Code, color: 'text-green-400', bg: 'bg-green-500/15' },
+            { id: 'f3', name: 'demo_presentation.mp4', size: '42.8 MB', icon: Film, color: 'text-purple-400', bg: 'bg-purple-500/15' },
+          ].map((file) => (
+            <div
+              key={file.id}
+              className="flex items-center justify-between p-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/5 transition-colors group/item"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-lg ${file.bg} ${file.color}`}>
+                  <file.icon size={15} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-foreground/90 group-hover/item:text-white transition-colors">
+                    {file.name}
+                  </span>
+                  <span className="text-[10px] text-foreground/40">{file.size}</span>
+                </div>
+              </div>
+
+              <button
+                onClick={(e) => handleCopyLink(file.id, e)}
+                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/40 text-[11px] text-foreground/70 hover:text-cyan-300 font-medium transition-all flex items-center gap-1"
+              >
+                {copiedId === file.id ? <Check size={12} className="text-teal-400" /> : <Copy size={12} />}
+                <span>{copiedId === file.id ? 'Copied' : 'Share'}</span>
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Interactive Call to Action Bar */}
+        <div className="p-3 rounded-2xl bg-gradient-to-r from-cyan-500/15 to-blue-500/15 border border-cyan-500/30 flex items-center justify-between group-hover:border-cyan-400 transition-all">
+          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-300">
+            <Upload size={15} className="animate-bounce text-cyan-400" />
+            <span>Click to Launch Storage Drive</span>
+          </div>
+          <div className="p-1.5 rounded-xl bg-cyan-400 text-slate-950 group-hover:translate-x-1 transition-transform">
+            <ArrowRight size={14} />
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
@@ -1011,14 +898,14 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
             </motion.div>
           </div>
 
-          {/* Right Column: Interactive 3D Stellar Core Canvas */}
+          {/* Right Column: Interactive Product Vault Visualizer */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.4, duration: 0.7 }}
             className="lg:col-span-5 relative flex justify-center items-center"
           >
-            <StellarCoreCanvas />
+            <HeroInteractiveVisual onGetStarted={onGetStarted} />
           </motion.div>
         </div>
       </section>
