@@ -92,7 +92,7 @@ function FloatingIcon({
       initial={{ opacity: 0, scale: 0.5 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay, duration: 0.5, type: 'spring' }}
-      className={`absolute w-12 h-12 rounded-2xl ${bg} border border-white/10 flex items-center justify-center shadow-xl backdrop-blur-sm pointer-events-none hidden sm:flex`}
+      className={`absolute w-12 h-12 rounded-2xl ${bg} border border-white/10 flex items-center justify-center shadow-xl backdrop-blur-sm pointer-events-none hidden lg:flex`}
       style={style}
     >
       <motion.div
