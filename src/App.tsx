@@ -837,15 +837,144 @@ function ThreeUniverseBackground() {
   );
 }
 
+// ─── 3D Stellar Core Canvas for Hero Section ──────────────────────────────────
+function StellarCoreCanvas() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let animId: number;
+    const width = container.clientWidth || 500;
+    const height = container.clientHeight || 500;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
+    camera.position.z = 7;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // ── Lighting ──
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    const p1 = new THREE.PointLight(0x00f2ff, 3, 25);
+    p1.position.set(5, 5, 5);
+    scene.add(p1);
+
+    const p2 = new THREE.PointLight(0x7000ff, 2.5, 25);
+    p2.position.set(-5, -5, 5);
+    scene.add(p2);
+
+    const coreGroup = new THREE.Group();
+    scene.add(coreGroup);
+
+    // Refractive Glass Sphere
+    const sphereGeom = new THREE.SphereGeometry(1.85, 64, 64);
+    const sphereMat = new THREE.MeshPhongMaterial({
+      color: 0x00f2ff,
+      emissive: 0x002233,
+      transparent: true,
+      opacity: 0.18,
+      shininess: 100,
+      specular: 0x00f2ff,
+      wireframe: false
+    });
+    const sphere = new THREE.Mesh(sphereGeom, sphereMat);
+    coreGroup.add(sphere);
+
+    // Inner Wireframe Data Grid
+    const octaGeom = new THREE.OctahedronGeometry(1.35, 1);
+    const octaMat = new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.65 });
+    const octaLines = new THREE.LineSegments(new THREE.WireframeGeometry(octaGeom), octaMat);
+    coreGroup.add(octaLines);
+
+    // Internal Point Cloud Stars
+    const pointGeom = new THREE.IcosahedronGeometry(1.2, 4);
+    const pointMat = new THREE.PointsMaterial({
+      color: 0x00f2ff,
+      size: 0.028,
+      transparent: true,
+      opacity: 0.85
+    });
+    const stars = new THREE.Points(pointGeom, pointMat);
+    coreGroup.add(stars);
+
+    // Galactic Torus Rings
+    const rings: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(2.7 + i * 0.45, 0.012, 16, 100),
+        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x7000ff : 0x00f2ff, transparent: true, opacity: 0.35 })
+      );
+      ring.rotation.x = Math.random() * Math.PI;
+      ring.rotation.y = Math.random() * Math.PI;
+      coreGroup.add(ring);
+      rings.push(ring);
+    }
+
+    let mouseX = 0;
+    let mouseY = 0;
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = container.getBoundingClientRect();
+      mouseX = ((e.clientX - rect.left) / rect.width) - 0.5;
+      mouseY = ((e.clientY - rect.top) / rect.height) - 0.5;
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+
+    const handleResize = () => {
+      const w = container.clientWidth || 500;
+      const h = container.clientHeight || 500;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    };
+    window.addEventListener('resize', handleResize);
+
+    let clock = new THREE.Clock();
+    const animate = () => {
+      const t = clock.getElapsedTime();
+      coreGroup.rotation.y += 0.003;
+      stars.rotation.x -= 0.004;
+      octaLines.rotation.y -= 0.006;
+      sphere.scale.setScalar(1 + Math.sin(t * 1.5) * 0.03);
+      rings.forEach((r, i) => { r.rotation.z += 0.008 * (i + 1); });
+
+      coreGroup.position.x += (mouseX * 2 - coreGroup.position.x) * 0.05;
+      coreGroup.position.y += (-mouseY * 2 - coreGroup.position.y) * 0.05;
+
+      renderer.render(scene, camera);
+      animId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-[420px] sm:h-[480px] flex items-center justify-center filter drop-shadow-[0_0_50px_rgba(0,242,255,0.4)] pointer-events-auto" />;
+}
+
 // ─── Landing Page ────────────────────────────────────────────────────────────
 function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; onOpenAuth: () => void }) {
   const floatingIcons = [
-    { icon: Image, color: 'text-pink-400', bg: 'bg-pink-500/15', style: { top: '15%', left: '8%' }, delay: 0.2 },
-    { icon: Film, color: 'text-purple-400', bg: 'bg-purple-500/15', style: { top: '60%', left: '5%' }, delay: 0.5 },
-    { icon: Music, color: 'text-yellow-400', bg: 'bg-yellow-500/15', style: { top: '30%', right: '7%' }, delay: 0.3 },
-    { icon: Archive, color: 'text-orange-400', bg: 'bg-orange-500/15', style: { top: '70%', right: '10%' }, delay: 0.6 },
-    { icon: Code, color: 'text-green-400', bg: 'bg-green-500/15', style: { top: '80%', left: '15%' }, delay: 0.4 },
-    { icon: FileText, color: 'text-blue-400', bg: 'bg-blue-500/15', style: { top: '10%', right: '20%' }, delay: 0.7 },
+    { icon: Image, color: 'text-pink-400', bg: 'bg-pink-500/15', style: { top: '15%', left: '4%' }, delay: 0.2 },
+    { icon: Film, color: 'text-purple-400', bg: 'bg-purple-500/15', style: { top: '65%', left: '3%' }, delay: 0.5 },
+    { icon: Music, color: 'text-yellow-400', bg: 'bg-yellow-500/15', style: { top: '35%', right: '4%' }, delay: 0.3 },
+    { icon: Archive, color: 'text-orange-400', bg: 'bg-orange-500/15', style: { top: '75%', right: '5%' }, delay: 0.6 },
+    { icon: Code, color: 'text-green-400', bg: 'bg-green-500/15', style: { top: '82%', left: '10%' }, delay: 0.4 },
+    { icon: FileText, color: 'text-blue-400', bg: 'bg-blue-500/15', style: { top: '12%', right: '15%' }, delay: 0.7 },
   ];
 
   return (
@@ -889,91 +1018,106 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         </div>
       </motion.nav>
 
-      {/* ── Hero Section ── */}
-      <section className="relative flex-1 flex flex-col items-center justify-center text-center px-6 pt-36 pb-20 overflow-hidden min-h-[85vh]">
+      {/* ── 2-Column Hero Section ── */}
+      <section className="relative flex-1 max-w-6xl mx-auto w-full px-6 pt-36 pb-16 min-h-[85vh] flex items-center">
         {/* Floating file icons */}
         {floatingIcons.map((fi, i) => (
           <FloatingIcon key={i} {...fi} />
         ))}
 
-        {/* Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
-        >
-          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
-          <Sparkles size={13} className="text-cyan-400" />
-          <span className="text-cyan-300 font-mono text-[11px]">System Status: Optimal</span>
-          <span className="text-foreground/30">|</span>
-          <span>Deep Space Universe</span>
-        </motion.div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center w-full">
+          {/* Left Column: Hero Copy */}
+          <div className="lg:col-span-7 flex flex-col items-start text-left z-10">
+            {/* Status Badge */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
+            >
+              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+              <Sparkles size={13} className="text-cyan-400" />
+              <span className="text-cyan-300 font-mono text-[11px]">System Status: Optimal</span>
+              <span className="text-foreground/30">|</span>
+              <span>The Universe of Secure Storage</span>
+            </motion.div>
 
-        {/* Headline */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6 }}
-          className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter leading-[1.08] max-w-4xl font-jakarta text-white drop-shadow-2xl"
-        >
-          ZupShare:
-          <br />
-          <span className="text-gradient-cyan">Your data, illuminated.</span>
-        </motion.h1>
+            {/* Headline */}
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              className="text-5xl sm:text-6xl font-extrabold tracking-tighter leading-[1.08] font-jakarta text-white drop-shadow-2xl"
+            >
+              ZupShare:
+              <br />
+              <span className="text-gradient-cyan">Your Data, Among the Stars.</span>
+            </motion.h1>
 
-        {/* Sub */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6 }}
-          className="mt-6 text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
-        >
-          The world's first high-performance cloud storage built for the speed of light. Secure. Scalable. Invisible.
-        </motion.p>
+            {/* Subtitle */}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.6 }}
+              className="mt-6 text-base sm:text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
+            >
+              Encrypted. Ethereal. Infinite. Experience the ultimate cloud storage architecture designed for universal data operations.
+            </motion.p>
 
-        {/* CTAs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-10 flex flex-col sm:flex-row items-center gap-4"
-        >
-          <button
-            onClick={onGetStarted}
-            className="group relative flex items-center gap-3 px-9 py-4.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
+            {/* CTAs */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-8 flex flex-wrap items-center gap-4"
+            >
+              <button
+                onClick={onGetStarted}
+                className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
+              >
+                <span>Launch Drive 🚀</span>
+                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
+              </button>
+              <button
+                onClick={onOpenAuth}
+                className="flex items-center gap-2.5 px-7 py-4 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
+              >
+                <ShieldCheck size={18} className="text-cyan-400" />
+                Security Protocol 🔒
+              </button>
+            </motion.div>
+
+            {/* Technical Stats */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7 }}
+              className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-6 w-full pt-8 border-t border-white/10"
+            >
+              {[
+                { val: '6,000+', label: 'Cosmic Node Stars' },
+                { val: '0ms', label: 'Light Speed CDN' },
+                { val: 'AES-512', label: 'Stellar Security' },
+                { val: '∞', label: 'Cosmic Capacity' },
+              ].map((s, i) => (
+                <div key={i} className="flex flex-col items-start">
+                  <span className="text-xl sm:text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
+                  <span className="text-xs text-foreground/40 mt-0.5">{s.label}</span>
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right Column: Interactive 3D Stellar Core Canvas */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4, duration: 0.7 }}
+            className="lg:col-span-5 relative flex justify-center items-center"
           >
-            <span>Launch Drive 🚀</span>
-            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
-          </button>
-          <button
-            onClick={onOpenAuth}
-            className="flex items-center gap-2.5 px-8 py-4.5 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
-          >
-            <ShieldCheck size={18} className="text-cyan-400" />
-            Security Protocol 🔒
-          </button>
-        </motion.div>
-
-        {/* Technical Stats */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl w-full pt-10 border-t border-white/10"
-        >
-          {[
-            { val: '6,000+', label: 'Cosmic Node Stars' },
-            { val: '0ms', label: 'Quantum CDN Latency' },
-            { val: 'AES-512', label: 'Prism Encryption' },
-            { val: '∞', label: 'Elastic Capacity' },
-          ].map((s, i) => (
-            <div key={i} className="flex flex-col items-center">
-              <span className="text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
-              <span className="text-xs text-foreground/40 mt-1">{s.label}</span>
-            </div>
-          ))}
-        </motion.div>
+            <StellarCoreCanvas />
+          </motion.div>
+        </div>
       </section>
 
       {/* ── Bento Grid Features ── */}
