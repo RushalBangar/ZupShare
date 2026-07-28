@@ -567,23 +567,100 @@ function AuthModal({
   );
 }
 
+// ─── WebGL Shader Background Canvas ───────────────────────────────────────────
+function ShaderCanvas() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let animId: number;
+    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+    if (!gl) return;
+
+    const syncSize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+    };
+    syncSize();
+    window.addEventListener('resize', syncSize);
+
+    const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+    const fs = `precision highp float;
+varying vec2 v_texCoord;
+uniform float u_time;
+
+void main() {
+    vec2 uv = v_texCoord;
+    float noise = sin(uv.x * 10.0 + u_time * 0.8) * cos(uv.y * 10.0 + u_time * 0.4);
+    vec3 color1 = vec3(0.02, 0.03, 0.05);
+    vec3 color2 = vec3(0.05, 0.02, 0.12);
+    
+    vec3 finalColor = mix(color1, color2, noise * 0.15 + 0.1);
+    float scanline = sin(uv.y * 600.0) * 0.015;
+    finalColor -= scanline;
+
+    gl_FragColor = vec4(finalColor, 1.0);
+}`;
+
+    const createShader = (type: number, src: string) => {
+      const shader = gl.createShader(type);
+      if (!shader) return null;
+      gl.shaderSource(shader, src);
+      gl.compileShader(shader);
+      return shader;
+    };
+
+    const vertShader = createShader(gl.VERTEX_SHADER, vs);
+    const fragShader = createShader(gl.FRAGMENT_SHADER, fs);
+    if (!vertShader || !fragShader) return;
+
+    const prog = gl.createProgram();
+    if (!prog) return;
+    gl.attachShader(prog, vertShader);
+    gl.attachShader(prog, fragShader);
+    gl.linkProgram(prog);
+    gl.useProgram(prog);
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+    const pos = gl.getAttribLocation(prog, 'a_position');
+    gl.enableVertexAttribArray(pos);
+    gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+    const uTime = gl.getUniformLocation(prog, 'u_time');
+
+    const render = (t: number) => {
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      if (uTime) gl.uniform1f(uTime, t * 0.001);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      animId = requestAnimationFrame(render);
+    };
+    animId = requestAnimationFrame(render);
+
+    return () => {
+      cancelAnimationFrame(animId);
+      window.removeEventListener('resize', syncSize);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none opacity-60 z-[-1]" />;
+}
+
 // ─── Landing Page ────────────────────────────────────────────────────────────
 function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; onOpenAuth: () => void }) {
-  const features = [
-    { icon: Upload, color: 'text-blue-400', bg: 'bg-blue-500/15', title: 'Resumable Chunk Uploads', desc: 'Drag files or whole folders. Pause, resume, and auto-recover drops seamlessly.' },
-    { icon: Lock, color: 'text-violet-400', bg: 'bg-violet-500/15', title: 'Private Safe Space', desc: 'Secure user-authenticated private storage isolated per account.' },
-    { icon: Image, color: 'text-pink-400', bg: 'bg-pink-500/15', title: 'Photo Lightbox Gallery', desc: 'Full-screen media lightbox with zoom, slideshow navigation, and metadata.' },
-    { icon: Globe, color: 'text-emerald-400', bg: 'bg-emerald-500/15', title: 'Public Sharing Link', desc: 'Generate one-click public URL or Markdown embeds with zero friction.' },
-    { icon: Zap, color: 'text-yellow-400', bg: 'bg-yellow-500/15', title: 'Lightning Fast CDN', desc: 'Delivered instantly through Supabase high-speed global storage edges.' },
-    { icon: Shield, color: 'text-cyan-400', bg: 'bg-cyan-500/15', title: 'AES-256 Encryption', desc: 'Encrypted storage at rest ensuring your files remain secure 24/7.' },
-  ];
-
-  const steps = [
-    { num: '01', icon: Globe, title: 'Open ZupShare', desc: 'Access Public Drive immediately with zero sign-up or setup barriers.', color: 'from-blue-500 to-cyan-500' },
-    { num: '02', icon: Upload, title: 'Upload & Organize', desc: 'Drag and drop files, organize folders, star key items, and filter by type.', color: 'from-violet-500 to-purple-500' },
-    { num: '03', icon: ShieldCheck, title: 'Share or Secure', desc: 'Copy public share links or lock private files inside your personal Safe Space.', color: 'from-emerald-500 to-teal-500' },
-  ];
-
   const floatingIcons = [
     { icon: Image, color: 'text-pink-400', bg: 'bg-pink-500/15', style: { top: '15%', left: '8%' }, delay: 0.2 },
     { icon: Film, color: 'text-purple-400', bg: 'bg-purple-500/15', style: { top: '60%', left: '5%' }, delay: 0.5 },
@@ -594,49 +671,48 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
   ];
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative overflow-x-hidden">
+      <ShaderCanvas />
 
-      {/* ── Nav ── */}
+      {/* ── Top Floating Curved Nav ── */}
       <motion.nav
-        initial={{ opacity: 0, y: -16 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="sticky top-0 z-50 w-full border-b border-white/[0.06] bg-background/80 backdrop-blur-xl"
+        className="fixed top-4 left-1/2 -translate-x-1/2 w-[92%] max-w-6xl rounded-2xl border border-white/10 bg-background/80 backdrop-blur-xl shadow-[0_0_30px_rgba(0,242,255,0.15)] z-50 px-6 py-3.5 flex justify-between items-center"
       >
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="ZupShare Logo" className="w-8 h-8 rounded-xl shadow-lg shadow-blue-500/30" />
-            <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-violet-400">
-              ZupShare
-            </span>
-          </div>
+        <div className="flex items-center gap-3">
+          <img src="/logo.png" alt="ZupShare Logo" className="h-8 w-8 object-contain rounded-xl shadow-lg shadow-cyan-500/30" />
+          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400 font-jakarta">
+            ZupShare
+          </span>
+        </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onOpenAuth}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-foreground/80 text-xs font-semibold transition-all"
-            >
-              <Lock size={13} className="text-violet-400" />
-              Safe Space
-            </button>
-            <button
-              onClick={onGetStarted}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-primary hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-all"
-            >
-              Open Drive <ArrowRight size={14} />
-            </button>
-          </div>
+        <div className="hidden md:flex items-center gap-6 text-xs font-medium text-foreground/70">
+          <a href="#features" className="hover:text-cyan-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">Features</a>
+          <a href="#security" className="hover:text-cyan-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">Security</a>
+          <a href="#how-it-works" className="hover:text-cyan-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">Protocol</a>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onOpenAuth}
+            className="flex items-center gap-1.5 text-cyan-300 hover:text-white font-semibold text-xs px-3.5 py-2 hover:bg-white/5 rounded-xl transition-all"
+          >
+            <Lock size={13} className="text-cyan-400" />
+            Sign In
+          </button>
+          <button
+            onClick={onGetStarted}
+            className="bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl glow-effect transition-all shadow-lg"
+          >
+            Launch Drive
+          </button>
         </div>
       </motion.nav>
 
-      {/* ── Hero ── */}
-      <section className="relative flex-1 flex flex-col items-center justify-center text-center px-6 py-24 overflow-hidden min-h-[85vh]">
-        {/* Background glows */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-80px] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-blue-600/10 rounded-full blur-[100px]" />
-          <div className="absolute bottom-[-60px] left-1/4 w-[400px] h-[400px] bg-violet-600/[0.08] rounded-full blur-[120px]" />
-        </div>
-
+      {/* ── Hero Section ── */}
+      <section className="relative flex-1 flex flex-col items-center justify-center text-center px-6 pt-36 pb-20 overflow-hidden min-h-[85vh]">
         {/* Floating file icons */}
         {floatingIcons.map((fi, i) => (
           <FloatingIcon key={i} {...fi} />
@@ -647,10 +723,10 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/25 text-blue-300 text-xs font-medium mb-6"
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
         >
-          <Sparkles size={12} className="text-blue-400" />
-          Public Sharing · Private Safe Space 🔒 · 100% Free
+          <Sparkles size={13} className="text-cyan-400 animate-pulse" />
+          The Speed of Thought · Encrypted Cloud Protocol
         </motion.div>
 
         {/* Headline */}
@@ -658,14 +734,11 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
-          className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter leading-[1.1] max-w-4xl"
+          className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tighter leading-[1.08] max-w-4xl font-jakarta text-white drop-shadow-2xl"
         >
-          Your files,{' '}
-          <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-400 to-violet-400">
-            your control.
-          </span>
+          ZupShare:
           <br />
-          <span className="text-foreground/70">Shared or Secured.</span>
+          <span className="text-gradient-cyan">The Speed of Thought.</span>
         </motion.h1>
 
         {/* Sub */}
@@ -673,9 +746,9 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.6 }}
-          className="mt-6 text-lg text-foreground/55 max-w-xl leading-relaxed"
+          className="mt-6 text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
         >
-          A clean, powerful alternative to Google Drive & Photos. Public instant sharing plus an encrypted private Safe Space.
+          Encrypted. Ethereal. Instant. Experience high-performance public cloud storage and a secured private Safe Space.
         </motion.p>
 
         {/* CTAs */}
@@ -687,17 +760,17 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         >
           <button
             onClick={onGetStarted}
-            className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-primary text-white font-bold text-base shadow-2xl shadow-primary/40 hover:shadow-primary/60 hover:bg-blue-500 transition-all duration-200 overflow-hidden"
+            className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
           >
-            <span className="relative z-10">Open Public Drive</span>
-            <ArrowRight size={18} className="relative z-10 group-hover:translate-x-1 transition-transform duration-200" />
+            <span>Launch Drive</span>
+            <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
           </button>
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-2.5 px-7 py-4 rounded-2xl border border-white/10 hover:border-violet-500/40 hover:bg-violet-500/10 text-foreground/80 font-medium text-base transition-all duration-200"
+            className="flex items-center gap-2.5 px-8 py-4 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
           >
-            <Lock size={16} className="text-violet-400" />
-            Enter Safe Space
+            <ShieldCheck size={18} className="text-cyan-400" />
+            Security Protocol
           </button>
         </motion.div>
 
@@ -706,72 +779,113 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.7 }}
-          className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl w-full pt-10 border-t border-white/[0.07]"
+          className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl w-full pt-10 border-t border-white/10"
         >
           {[
-            { val: '₹0', label: 'Free Storage' },
-            { val: 'TUS', label: 'Resumable Uploads' },
-            { val: 'AES-256', label: 'Encryption at Rest' },
-            { val: '0', label: 'Sign-up Friction' },
+            { val: '₹0', label: 'Free Cloud Tier' },
+            { val: 'TUS', label: 'Resumable Streaming' },
+            { val: 'AES-256', label: 'Neural Encryption' },
+            { val: '0ms', label: 'Zero Setup Barrier' },
           ].map((s, i) => (
             <div key={i} className="flex flex-col items-center">
-              <span className="text-2xl font-extrabold text-white tracking-tight">{s.val}</span>
+              <span className="text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
               <span className="text-xs text-foreground/40 mt-1">{s.label}</span>
             </div>
           ))}
         </motion.div>
       </section>
 
-      {/* ── Features ── */}
+      {/* ── Bento Grid Features ── */}
       <section id="features" className="py-24 px-6 bg-white/[0.015]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-medium mb-4">
-              Everything Included
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-medium mb-4">
+              Architecture Overview
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Built for Storage & Media</h2>
-            <p className="mt-4 text-foreground/50 max-w-md mx-auto">Inspired by modern drive architectures for seamless file handling.</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-jakarta text-white">Bento Architecture</h2>
+            <p className="mt-4 text-foreground/50 max-w-md mx-auto">Designed for high-performance cloud file operations and security.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((f, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
-                className="group p-6 rounded-2xl border border-white/[0.07] bg-white/[0.025] backdrop-blur-sm hover:border-blue-500/25 hover:bg-blue-500/5 hover:-translate-y-1 transition-all duration-300"
-              >
-                <div className={`w-11 h-11 rounded-xl ${f.bg} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                  <f.icon size={20} className={f.color} />
-                </div>
-                <h3 className="font-bold text-sm mb-2">{f.title}</h3>
-                <p className="text-xs text-foreground/50 leading-relaxed">{f.desc}</p>
-              </motion.div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Bento Card 1: Neural Security */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="glass-panel p-8 rounded-2xl flex flex-col gap-4 relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 border border-white/10"
+            >
+              <div className="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-[60px] group-hover:opacity-60 transition-opacity" />
+              <Shield size={36} className="text-cyan-400 mb-2" />
+              <h3 className="text-xl font-bold text-white font-jakarta">Neural Security</h3>
+              <p className="text-xs text-foreground/50 leading-relaxed">
+                AES-256 encryption woven into the fabric of every byte. Your data exists in a state of absolute isolation.
+              </p>
+              <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
+                <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded text-[10px] text-cyan-300 tracking-wider uppercase font-semibold">
+                  Protocol Active
+                </span>
+                <Lock size={14} className="text-cyan-400/60" />
+              </div>
+            </motion.div>
+
+            {/* Bento Card 2: Kinetic Speed */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="glass-panel p-8 rounded-2xl flex flex-col gap-4 relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 border border-white/10"
+            >
+              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[60px] group-hover:opacity-60 transition-opacity" />
+              <Zap size={36} className="text-purple-400 mb-2" />
+              <h3 className="text-xl font-bold text-white font-jakarta">Kinetic Speed</h3>
+              <p className="text-xs text-foreground/50 leading-relaxed">
+                Powered by a globally distributed Edge CDN with TUS resumable multipart protocol. Access your files faster than thought itself.
+              </p>
+              <div className="w-full h-1 bg-white/10 rounded-full mt-auto relative overflow-hidden">
+                <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 to-purple-500 w-full animate-pulse" />
+              </div>
+            </motion.div>
+
+            {/* Bento Card 3: Infinite Horizon */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="glass-panel p-8 rounded-2xl flex flex-col gap-4 relative overflow-hidden group hover:-translate-y-2 transition-transform duration-300 border border-white/10"
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-blue-500/15 rounded-full blur-[60px] group-hover:opacity-60 transition-opacity" />
+              <Globe size={36} className="text-blue-400 mb-2" />
+              <h3 className="text-xl font-bold text-white font-jakarta">Infinite Horizon</h3>
+              <p className="text-xs text-foreground/50 leading-relaxed">
+                Limitless cloud storage architecture. Scale without boundaries in a frictionless, zero-setup public & private environment.
+              </p>
+              <div className="mt-auto pt-4 flex gap-2">
+                <span className="text-[10px] bg-white/10 px-2.5 py-1 rounded text-white font-mono">Scalable</span>
+                <span className="text-[10px] bg-white/10 px-2.5 py-1 rounded text-white font-mono">Ethereal</span>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* ── How it works ── */}
-      <section id="how-it-works" className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Three Simple Steps</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {steps.map((step, i) => (
-              <div key={i} className="relative flex flex-col items-center text-center p-8 rounded-3xl border border-white/[0.07] bg-white/[0.02]">
-                <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-xl mb-5`}>
-                  <step.icon size={24} className="text-white" />
-                </div>
-                <h3 className="text-lg font-bold mb-3">{step.title}</h3>
-                <p className="text-sm text-foreground/50 leading-relaxed">{step.desc}</p>
-              </div>
-            ))}
-          </div>
+      {/* ── Security & Safe Space Section ── */}
+      <section id="security" className="py-20 px-6">
+        <div className="max-w-4xl mx-auto glass-panel p-10 sm:p-12 rounded-3xl border border-cyan-500/20 bg-gradient-to-b from-cyan-500/10 to-purple-500/5 text-center relative overflow-hidden">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-80 h-28 bg-cyan-500/20 blur-[70px] rounded-full" />
+          <h2 className="text-3xl sm:text-4xl font-extrabold font-jakarta tracking-tight text-white mb-4">
+            Encrypted Private Safe Space 🔒
+          </h2>
+          <p className="text-foreground/60 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+            Need private storage? Sign in to unlock your personal encrypted drive isolated per account.
+          </p>
+          <button
+            onClick={onOpenAuth}
+            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold text-sm shadow-xl shadow-purple-600/30 transition-all"
+          >
+            Enter Safe Space 🔒
+          </button>
         </div>
       </section>
 
