@@ -568,272 +568,26 @@ function AuthModal({
   );
 }
 
-// ─── Three.js 3D Interactive Deep Space Universe ─────────────────────────────
-function ThreeUniverseBackground() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let animId: number;
-    const width = container.clientWidth || window.innerWidth;
-    const height = container.clientHeight || window.innerHeight;
-
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x030712, 0.025);
-
-    const camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
-    camera.position.set(0, 4, 12);
-    camera.lookAt(0, 0, 0);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    container.appendChild(renderer.domElement);
-
-    // ── Lighting ──
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
-
-    const coreLight1 = new THREE.PointLight(0x00f2ff, 4, 40);
-    coreLight1.position.set(0, 0, 0);
-    scene.add(coreLight1);
-
-    const coreLight2 = new THREE.PointLight(0x8b5cf6, 3, 35);
-    coreLight2.position.set(3, 2, 3);
-    scene.add(coreLight2);
-
-    const universeGroup = new THREE.Group();
-    scene.add(universeGroup);
-
-    // ── 1. 6,000 Star Particle Spiral Galaxy ──
-    const starCount = 6000;
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-
-    const branches = 4;
-    const radius = 14;
-    const spin = 1.2;
-
-    const colorCore = new THREE.Color(0xffffff);
-    const colorInner = new THREE.Color(0x00f2ff); // Electric Cyan
-    const colorMiddle = new THREE.Color(0x8b5cf6); // Royal Violet
-    const colorOuter = new THREE.Color(0xec4899); // Nebula Pink
-
-    for (let i = 0; i < starCount; i++) {
-      const r = Math.pow(Math.random(), 1.8) * radius;
-      const branchAngle = ((i % branches) / branches) * Math.PI * 2;
-      const spinAngle = r * spin;
-
-      const randomX = (Math.random() - 0.5) * Math.pow(r / radius, 1.5) * 2;
-      const randomY = (Math.random() - 0.5) * Math.pow(r / radius, 1.5) * 1.5;
-      const randomZ = (Math.random() - 0.5) * Math.pow(r / radius, 1.5) * 2;
-
-      const x = Math.cos(branchAngle + spinAngle) * r + randomX;
-      const y = randomY;
-      const z = Math.sin(branchAngle + spinAngle) * r + randomZ;
-
-      starPositions[i * 3] = x;
-      starPositions[i * 3 + 1] = y;
-      starPositions[i * 3 + 2] = z;
-
-      const mixedColor = colorCore.clone();
-      const ratio = r / radius;
-      if (ratio < 0.25) {
-        mixedColor.lerp(colorInner, ratio * 4);
-      } else if (ratio < 0.65) {
-        mixedColor.copy(colorInner).lerp(colorMiddle, (ratio - 0.25) * 2.5);
-      } else {
-        mixedColor.copy(colorMiddle).lerp(colorOuter, (ratio - 0.65) * 2.8);
-      }
-
-      starColors[i * 3] = mixedColor.r;
-      starColors[i * 3 + 1] = mixedColor.g;
-      starColors[i * 3 + 2] = mixedColor.b;
-    }
-
-    const galaxyGeom = new THREE.BufferGeometry();
-    galaxyGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    galaxyGeom.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-
-    const galaxyMat = new THREE.PointsMaterial({
-      size: 0.045,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-      blending: THREE.AdditiveBlending
-    });
-
-    const galaxyPoints = new THREE.Points(galaxyGeom, galaxyMat);
-    universeGroup.add(galaxyPoints);
-
-    // ── 2. Supermassive Black Hole & Accretion Disk ──
-    const bhGroup = new THREE.Group();
-
-    // Black Hole Core
-    const bhGeom = new THREE.SphereGeometry(0.85, 32, 32);
-    const bhMat = new THREE.MeshBasicMaterial({ color: 0x010308 });
-    const bhCore = new THREE.Mesh(bhGeom, bhMat);
-    bhGroup.add(bhCore);
-
-    // Accretion Disk Ring 1 (Cyan Energy)
-    const accGeom1 = new THREE.TorusGeometry(1.6, 0.18, 20, 100);
-    const accMat1 = new THREE.MeshPhongMaterial({
-      color: 0x00f2ff,
-      emissive: 0x005577,
-      transparent: true,
-      opacity: 0.7,
-      wireframe: true
-    });
-    const accRing1 = new THREE.Mesh(accGeom1, accMat1);
-    accRing1.rotation.x = Math.PI * 0.45;
-    bhGroup.add(accRing1);
-
-    // Accretion Disk Ring 2 (Purple Flare)
-    const accGeom2 = new THREE.TorusGeometry(2.1, 0.08, 16, 100);
-    const accMat2 = new THREE.MeshBasicMaterial({
-      color: 0x8b5cf6,
-      transparent: true,
-      opacity: 0.45
-    });
-    const accRing2 = new THREE.Mesh(accGeom2, accMat2);
-    accRing2.rotation.x = Math.PI * 0.42;
-    accRing2.rotation.y = Math.PI * 0.25;
-    bhGroup.add(accRing2);
-
-    universeGroup.add(bhGroup);
-
-    // ── 3. Orbiting Planets ──
-    // Planet Alpha: Gas Giant with Rings
-    const planetAlphaGroup = new THREE.Group();
-    const pAlphaGeom = new THREE.SphereGeometry(0.55, 32, 32);
-    const pAlphaMat = new THREE.MeshStandardMaterial({
-      color: 0x00daf3,
-      roughness: 0.4,
-      metalness: 0.6
-    });
-    const pAlphaMesh = new THREE.Mesh(pAlphaGeom, pAlphaMat);
-    planetAlphaGroup.add(pAlphaMesh);
-
-    // Planet Alpha Rings
-    const ringGeom = new THREE.TorusGeometry(0.9, 0.1, 2, 64);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0xc3f5ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
-    const ringMesh = new THREE.Mesh(ringGeom, ringMat);
-    ringMesh.rotation.x = Math.PI / 3;
-    planetAlphaGroup.add(ringMesh);
-
-    universeGroup.add(planetAlphaGroup);
-
-    // Planet Beta: Energy Crystal Planet
-    const pBetaGeom = new THREE.IcosahedronGeometry(0.4, 2);
-    const pBetaMat = new THREE.MeshPhongMaterial({
-      color: 0xa855f7,
-      emissive: 0x3b0764,
-      wireframe: true,
-      transparent: true,
-      opacity: 0.8
-    });
-    const pBetaMesh = new THREE.Mesh(pBetaGeom, pBetaMat);
-    universeGroup.add(pBetaMesh);
-
-    // ── 4. Ambient Cosmic Dust Nebulae ──
-    const dustCount = 400;
-    const dustPositions = new Float32Array(dustCount * 3);
-    for (let i = 0; i < dustCount; i++) {
-      dustPositions[i * 3] = (Math.random() - 0.5) * 30;
-      dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 16;
-      dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 30;
-    }
-    const dustGeom = new THREE.BufferGeometry();
-    dustGeom.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-    const dustMat = new THREE.PointsMaterial({
-      color: 0x38bdf8,
-      size: 0.08,
-      transparent: true,
-      opacity: 0.35,
-      blending: THREE.AdditiveBlending
-    });
-    const dustPoints = new THREE.Points(dustGeom, dustMat);
-    scene.add(dustPoints);
-
-    // ── Mouse & Interaction ──
-    let mouseX = 0;
-    let mouseY = 0;
-    let targetX = 0;
-    let targetY = 0;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseX = (e.clientX / window.innerWidth) - 0.5;
-      mouseY = (e.clientY / window.innerHeight) - 0.5;
-    };
-    window.addEventListener('mousemove', handleMouseMove);
-
-    const handleResize = () => {
-      const w = container.clientWidth || window.innerWidth;
-      const h = container.clientHeight || window.innerHeight;
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
-    };
-    window.addEventListener('resize', handleResize);
-
-    // ── Animation Loop ──
-    let clock = new THREE.Clock();
-
-    const animate = () => {
-      const elapsedTime = clock.getElapsedTime();
-
-      // Galaxy & Core Rotation
-      galaxyPoints.rotation.y = elapsedTime * 0.04;
-      accRing1.rotation.z = elapsedTime * 0.3;
-      accRing2.rotation.z = -elapsedTime * 0.2;
-      dustPoints.rotation.y = elapsedTime * 0.01;
-
-      // Planet Alpha Orbiting around Galaxy
-      const orbit1R = 6.5;
-      planetAlphaGroup.position.x = Math.cos(elapsedTime * 0.25) * orbit1R;
-      planetAlphaGroup.position.z = Math.sin(elapsedTime * 0.25) * orbit1R;
-      planetAlphaGroup.position.y = Math.sin(elapsedTime * 0.5) * 0.8;
-      pAlphaMesh.rotation.y = elapsedTime * 0.8;
-
-      // Planet Beta Counter Orbiting
-      const orbit2R = 4.2;
-      pBetaMesh.position.x = Math.cos(-elapsedTime * 0.35 + 2) * orbit2R;
-      pBetaMesh.position.z = Math.sin(-elapsedTime * 0.35 + 2) * orbit2R;
-      pBetaMesh.position.y = Math.cos(elapsedTime * 0.4) * 1.2;
-      pBetaMesh.rotation.x = elapsedTime * 0.5;
-      pBetaMesh.rotation.y = elapsedTime * 0.6;
-
-      // Smooth Camera Parallax Tracking Mouse Cursor
-      targetX = mouseX * 4;
-      targetY = -mouseY * 3;
-      camera.position.x += (targetX - camera.position.x) * 0.04;
-      camera.position.y += (targetY + 3 - camera.position.y) * 0.04;
-      camera.lookAt(0, 0, 0);
-
-      renderer.render(scene, camera);
-      animId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animId);
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('resize', handleResize);
-      if (container.contains(renderer.domElement)) {
-        container.removeChild(renderer.domElement);
-      }
-      renderer.dispose();
-    };
-  }, []);
-
+// ─── CSS Animated Deep Space Background ──────────────────────────────────────
+function DeepSpaceBackground() {
   return (
-    <>
-      <div ref={containerRef} className="fixed inset-0 w-full h-full pointer-events-none -z-20 mix-blend-screen opacity-35" />
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_center,transparent_25%,#031427_85%)] -z-10" />
-      <div className="fixed inset-0 pointer-events-none bg-gradient-to-b from-[#031427]/50 via-transparent to-[#031427]/95 -z-10" />
-    </>
+    <div className="fixed inset-0 -z-20 overflow-hidden pointer-events-none">
+      {/* Base dark gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#020a18] via-[#031427] to-[#050d1a]" />
+
+      {/* Nebula blobs */}
+      <div className="absolute top-[-15%] left-[-10%] w-[55%] h-[55%] rounded-full bg-[radial-gradient(circle,rgba(0,242,255,0.08)_0%,transparent_70%)] animate-[nebulaDrift_20s_ease-in-out_infinite]" />
+      <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-[radial-gradient(circle,rgba(139,92,246,0.07)_0%,transparent_70%)] animate-[nebulaDrift_25s_ease-in-out_infinite_reverse]" />
+      <div className="absolute top-[30%] right-[10%] w-[40%] h-[40%] rounded-full bg-[radial-gradient(circle,rgba(56,189,248,0.05)_0%,transparent_70%)] animate-[nebulaDrift_18s_ease-in-out_infinite_2s]" />
+
+      {/* Starfield layers */}
+      <div className="starfield-layer starfield-small" />
+      <div className="starfield-layer starfield-medium" />
+      <div className="starfield-layer starfield-large" />
+
+      {/* Soft vignette overlay */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(2,10,24,0.85)_100%)]" />
+    </div>
   );
 }
 
@@ -850,71 +604,119 @@ function StellarCoreCanvas() {
     const height = container.clientHeight || 500;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
-    camera.position.z = 7;
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
+    camera.position.z = 6;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
     container.appendChild(renderer.domElement);
 
-    // ── Lighting ──
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
+    // ── Strong Lighting ──
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-    const p1 = new THREE.PointLight(0x00f2ff, 3, 25);
-    p1.position.set(5, 5, 5);
-    scene.add(p1);
+    const keyLight = new THREE.PointLight(0x00f2ff, 8, 30);
+    keyLight.position.set(4, 3, 6);
+    scene.add(keyLight);
 
-    const p2 = new THREE.PointLight(0x7000ff, 2.5, 25);
-    p2.position.set(-5, -5, 5);
-    scene.add(p2);
+    const fillLight = new THREE.PointLight(0x8b5cf6, 5, 25);
+    fillLight.position.set(-4, -2, 4);
+    scene.add(fillLight);
+
+    const coreGlow = new THREE.PointLight(0x00f2ff, 6, 15);
+    coreGlow.position.set(0, 0, 0);
+    scene.add(coreGlow);
 
     const coreGroup = new THREE.Group();
     scene.add(coreGroup);
 
-    // Refractive Glass Sphere
+    // ── Glowing Energy Core (inner bright sphere) ──
+    const energyGeom = new THREE.SphereGeometry(0.6, 32, 32);
+    const energyMat = new THREE.MeshBasicMaterial({
+      color: 0x00f2ff,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const energyCore = new THREE.Mesh(energyGeom, energyMat);
+    coreGroup.add(energyCore);
+
+    // ── Outer Glass Sphere ──
     const sphereGeom = new THREE.SphereGeometry(1.85, 64, 64);
     const sphereMat = new THREE.MeshPhongMaterial({
-      color: 0x00f2ff,
-      emissive: 0x002233,
+      color: 0x0af0ff,
+      emissive: 0x003344,
+      emissiveIntensity: 0.6,
       transparent: true,
-      opacity: 0.18,
-      shininess: 100,
-      specular: 0x00f2ff,
-      wireframe: false
+      opacity: 0.12,
+      shininess: 150,
+      specular: 0x44ffff,
     });
     const sphere = new THREE.Mesh(sphereGeom, sphereMat);
     coreGroup.add(sphere);
 
-    // Inner Wireframe Data Grid
+    // ── Inner Wireframe Data Grid ──
     const octaGeom = new THREE.OctahedronGeometry(1.35, 1);
-    const octaMat = new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.65 });
+    const octaMat = new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.8 });
     const octaLines = new THREE.LineSegments(new THREE.WireframeGeometry(octaGeom), octaMat);
     coreGroup.add(octaLines);
 
-    // Internal Point Cloud Stars
-    const pointGeom = new THREE.IcosahedronGeometry(1.2, 4);
+    // ── Internal Point Cloud Stars (additive blending for glow) ──
+    const pointGeom = new THREE.IcosahedronGeometry(1.5, 5);
     const pointMat = new THREE.PointsMaterial({
       color: 0x00f2ff,
-      size: 0.028,
+      size: 0.04,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
     });
     const stars = new THREE.Points(pointGeom, pointMat);
     coreGroup.add(stars);
 
-    // Galactic Torus Rings
-    const rings: THREE.Mesh[] = [];
+    // ── Orbital Particle Rings (3 rings with particles orbiting) ──
+    const ringColors = [0x00f2ff, 0x8b5cf6, 0x38bdf8];
+    const orbitRings: THREE.Points[] = [];
+    for (let r = 0; r < 3; r++) {
+      const ringRadius = 2.4 + r * 0.5;
+      const particleCount = 120;
+      const positions = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount; i++) {
+        const angle = (i / particleCount) * Math.PI * 2;
+        const jitter = (Math.random() - 0.5) * 0.08;
+        positions[i * 3] = Math.cos(angle) * (ringRadius + jitter);
+        positions[i * 3 + 1] = (Math.random() - 0.5) * 0.15;
+        positions[i * 3 + 2] = Math.sin(angle) * (ringRadius + jitter);
+      }
+      const ringGeom = new THREE.BufferGeometry();
+      ringGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const ringMat = new THREE.PointsMaterial({
+        color: ringColors[r],
+        size: 0.035,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      });
+      const ringPoints = new THREE.Points(ringGeom, ringMat);
+      ringPoints.rotation.x = (Math.PI / 4) + r * 0.4;
+      ringPoints.rotation.z = r * 0.6;
+      coreGroup.add(ringPoints);
+      orbitRings.push(ringPoints);
+    }
+
+    // ── Thin Wireframe Torus Rings ──
+    const torusRings: THREE.Mesh[] = [];
     for (let i = 0; i < 3; i++) {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(2.7 + i * 0.45, 0.012, 16, 100),
-        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x7000ff : 0x00f2ff, transparent: true, opacity: 0.35 })
+        new THREE.TorusGeometry(2.5 + i * 0.5, 0.008, 16, 128),
+        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x8b5cf6 : 0x00f2ff, transparent: true, opacity: 0.4 })
       );
-      ring.rotation.x = Math.random() * Math.PI;
-      ring.rotation.y = Math.random() * Math.PI;
+      ring.rotation.x = (Math.PI / 3) + i * 0.3;
+      ring.rotation.y = i * 0.5;
       coreGroup.add(ring);
-      rings.push(ring);
+      torusRings.push(ring);
     }
 
     let mouseX = 0;
@@ -935,17 +737,35 @@ function StellarCoreCanvas() {
     };
     window.addEventListener('resize', handleResize);
 
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
     const animate = () => {
       const t = clock.getElapsedTime();
-      coreGroup.rotation.y += 0.003;
-      stars.rotation.x -= 0.004;
-      octaLines.rotation.y -= 0.006;
-      sphere.scale.setScalar(1 + Math.sin(t * 1.5) * 0.03);
-      rings.forEach((r, i) => { r.rotation.z += 0.008 * (i + 1); });
 
-      coreGroup.position.x += (mouseX * 2 - coreGroup.position.x) * 0.05;
-      coreGroup.position.y += (-mouseY * 2 - coreGroup.position.y) * 0.05;
+      // Core rotation
+      coreGroup.rotation.y += 0.004;
+      stars.rotation.x -= 0.005;
+      stars.rotation.z += 0.002;
+      octaLines.rotation.y -= 0.007;
+      octaLines.rotation.x += 0.002;
+
+      // Pulsing energy core
+      const pulse = 1 + Math.sin(t * 2) * 0.15;
+      energyCore.scale.setScalar(pulse);
+      energyMat.opacity = 0.6 + Math.sin(t * 2.5) * 0.3;
+
+      // Sphere breathing
+      sphere.scale.setScalar(1 + Math.sin(t * 1.2) * 0.04);
+
+      // Orbital rings rotation
+      orbitRings.forEach((r, i) => { r.rotation.y += 0.006 * (i + 1); });
+      torusRings.forEach((r, i) => { r.rotation.z += 0.005 * (i + 1); });
+
+      // Dynamic core light pulsing
+      coreGlow.intensity = 4 + Math.sin(t * 2) * 2;
+
+      // Mouse parallax
+      coreGroup.position.x += (mouseX * 1.5 - coreGroup.position.x) * 0.05;
+      coreGroup.position.y += (-mouseY * 1.5 - coreGroup.position.y) * 0.05;
 
       renderer.render(scene, camera);
       animId = requestAnimationFrame(animate);
@@ -963,7 +783,7 @@ function StellarCoreCanvas() {
     };
   }, []);
 
-  return <div ref={containerRef} className="w-full h-[420px] sm:h-[480px] flex items-center justify-center filter drop-shadow-[0_0_50px_rgba(0,242,255,0.4)] pointer-events-auto" />;
+  return <div ref={containerRef} className="w-full h-[420px] sm:h-[480px] flex items-center justify-center filter drop-shadow-[0_0_60px_rgba(0,242,255,0.5)] pointer-events-auto" />;
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
@@ -979,7 +799,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
-      <ThreeUniverseBackground />
+      <DeepSpaceBackground />
 
       {/* ── Top Floating Curved Nav ── */}
       <motion.nav

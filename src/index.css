@@ -103,3 +103,86 @@
     background: rgba(255,255,255,0.2);
   }
 }
+
+/* ── Animated Starfield Background ── */
+.starfield-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.starfield-layer::after {
+  content: '';
+  position: absolute;
+  top: -200px;
+  left: -200px;
+  right: -200px;
+  bottom: -200px;
+  border-radius: 0;
+}
+
+/* Small stars — 1px, many, fast twinkle */
+.starfield-small::after {
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow:
+    120px 50px #fff, 310px 180px #fff, 520px 90px #00f2ff, 780px 320px #fff,
+    90px 430px #fff, 350px 540px #8b5cf6, 600px 60px #fff, 850px 200px #fff,
+    1100px 120px #00f2ff, 1300px 400px #fff, 150px 700px #fff, 450px 800px #fff,
+    700px 650px #38bdf8, 950px 750px #fff, 1200px 550px #fff, 200px 150px #fff,
+    480px 280px #fff, 720px 480px #00f2ff, 980px 100px #fff, 1150px 320px #fff,
+    30px 250px #fff, 550px 380px #fff, 800px 520px #fff, 1050px 680px #8b5cf6,
+    1350px 180px #fff, 420px 620px #fff, 670px 750px #fff, 920px 50px #38bdf8,
+    1250px 620px #fff, 100px 850px #00f2ff, 300px 950px #fff, 500px 1050px #fff,
+    750px 900px #fff, 1000px 1000px #fff, 1200px 850px #00f2ff,
+    50px 550px #fff, 280px 380px #fff, 530px 190px #8b5cf6, 770px 610px #fff,
+    1020px 440px #fff, 1280px 280px #fff, 160px 960px #38bdf8, 410px 1080px #fff,
+    660px 1150px #fff, 910px 980px #fff, 1180px 1100px #00f2ff,
+    1400px 550px #fff, 1500px 300px #fff, 1600px 700px #00f2ff, 1700px 150px #fff,
+    1550px 850px #8b5cf6, 1450px 1000px #fff, 1650px 500px #fff, 1750px 800px #38bdf8;
+  animation: starTwinkle 4s ease-in-out infinite alternate;
+}
+
+/* Medium stars — 1.5px, moderate twinkle */
+.starfield-medium::after {
+  width: 1.5px;
+  height: 1.5px;
+  background: transparent;
+  box-shadow:
+    200px 120px #00f2ff, 450px 350px #fff, 700px 80px #8b5cf6, 950px 500px #fff,
+    100px 600px #38bdf8, 380px 250px #fff, 630px 470px #fff, 880px 150px #00f2ff,
+    1130px 380px #fff, 250px 830px #fff, 500px 680px #8b5cf6, 750px 920px #fff,
+    1000px 260px #fff, 1250px 700px #00f2ff, 50px 400px #fff,
+    320px 720px #38bdf8, 570px 550px #fff, 820px 780px #fff, 1080px 900px #00f2ff,
+    1320px 100px #fff, 170px 1050px #8b5cf6, 420px 980px #fff, 680px 1130px #fff,
+    1500px 200px #00f2ff, 1600px 600px #fff, 1700px 400px #8b5cf6, 1450px 750px #fff;
+  animation: starTwinkle 6s ease-in-out infinite alternate-reverse;
+}
+
+/* Large stars — 2px, rare, slow twinkle */
+.starfield-large::after {
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow:
+    300px 200px #00f2ff, 650px 420px rgba(255,255,255,0.9), 1000px 300px #8b5cf6,
+    150px 550px rgba(255,255,255,0.8), 500px 100px #38bdf8, 850px 650px #fff,
+    1200px 450px #00f2ff, 400px 800px rgba(255,255,255,0.7), 750px 350px #8b5cf6,
+    1100px 700px #38bdf8, 50px 900px #fff, 600px 950px #00f2ff,
+    1500px 350px #fff, 1650px 550px #00f2ff, 1400px 900px #8b5cf6;
+  animation: starTwinkle 8s ease-in-out infinite alternate;
+}
+
+@keyframes starTwinkle {
+  0% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.5; }
+}
+
+@keyframes nebulaDrift {
+  0% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(2%, -1.5%) scale(1.05); }
+  66% { transform: translate(-1.5%, 2%) scale(0.97); }
+  100% { transform: translate(0, 0) scale(1); }
+}
