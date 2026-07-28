@@ -591,7 +591,7 @@ function DeepSpaceBackground() {
   );
 }
 
-// ─── 3D Stellar Core Canvas for Hero Section ──────────────────────────────────
+// ─── 3D Holographic Data Orb for Hero Section ─────────────────────────────────
 function StellarCoreCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -604,121 +604,197 @@ function StellarCoreCanvas() {
     const height = container.clientHeight || 500;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
-    camera.position.z = 6;
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    camera.position.set(0, 0.3, 5.5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
     container.appendChild(renderer.domElement);
 
-    // ── Strong Lighting ──
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    // ── Lighting ──
+    scene.add(new THREE.AmbientLight(0x88ccff, 0.3));
 
-    const keyLight = new THREE.PointLight(0x00f2ff, 8, 30);
-    keyLight.position.set(4, 3, 6);
-    scene.add(keyLight);
+    const mainLight = new THREE.PointLight(0x00d4ff, 4, 20);
+    mainLight.position.set(3, 4, 5);
+    scene.add(mainLight);
 
-    const fillLight = new THREE.PointLight(0x8b5cf6, 5, 25);
-    fillLight.position.set(-4, -2, 4);
-    scene.add(fillLight);
-
-    const coreGlow = new THREE.PointLight(0x00f2ff, 6, 15);
-    coreGlow.position.set(0, 0, 0);
-    scene.add(coreGlow);
+    const accentLight = new THREE.PointLight(0x7c3aed, 2.5, 18);
+    accentLight.position.set(-3, -1, 4);
+    scene.add(accentLight);
 
     const coreGroup = new THREE.Group();
     scene.add(coreGroup);
 
-    // ── Glowing Energy Core (inner bright sphere) ──
-    const energyGeom = new THREE.SphereGeometry(0.6, 32, 32);
-    const energyMat = new THREE.MeshBasicMaterial({
-      color: 0x00f2ff,
+    // ── Custom Fresnel Glow Shader for Main Orb ──
+    const fresnelVertexShader = `
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        vViewPosition = -mvPosition.xyz;
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `;
+
+    const fresnelFragmentShader = `
+      uniform vec3 uColor;
+      uniform vec3 uRimColor;
+      uniform float uRimPower;
+      uniform float uOpacity;
+      uniform float uTime;
+      varying vec3 vNormal;
+      varying vec3 vViewPosition;
+      void main() {
+        vec3 viewDir = normalize(vViewPosition);
+        float fresnel = 1.0 - abs(dot(viewDir, vNormal));
+        fresnel = pow(fresnel, uRimPower);
+        
+        // Subtle animated surface pattern
+        float pattern = sin(vNormal.x * 8.0 + uTime * 0.5) * sin(vNormal.y * 8.0 - uTime * 0.3) * 0.08;
+        
+        vec3 color = mix(uColor, uRimColor, fresnel) + pattern;
+        float alpha = mix(uOpacity * 0.3, uOpacity, fresnel);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `;
+
+    // ── Main Holographic Orb (Fresnel Shader) ──
+    const orbGeom = new THREE.SphereGeometry(1.6, 80, 80);
+    const orbMat = new THREE.ShaderMaterial({
+      vertexShader: fresnelVertexShader,
+      fragmentShader: fresnelFragmentShader,
+      uniforms: {
+        uColor: { value: new THREE.Color(0x041525) },
+        uRimColor: { value: new THREE.Color(0x00d4ff) },
+        uRimPower: { value: 2.5 },
+        uOpacity: { value: 0.95 },
+        uTime: { value: 0 },
+      },
       transparent: true,
-      opacity: 0.9,
+      side: THREE.FrontSide,
+      depthWrite: false,
     });
-    const energyCore = new THREE.Mesh(energyGeom, energyMat);
-    coreGroup.add(energyCore);
+    const orb = new THREE.Mesh(orbGeom, orbMat);
+    coreGroup.add(orb);
 
-    // ── Outer Glass Sphere ──
-    const sphereGeom = new THREE.SphereGeometry(1.85, 64, 64);
-    const sphereMat = new THREE.MeshPhongMaterial({
-      color: 0x0af0ff,
-      emissive: 0x003344,
-      emissiveIntensity: 0.6,
+    // ── Outer Glow Shell (larger, fainter) ──
+    const glowGeom = new THREE.SphereGeometry(1.85, 48, 48);
+    const glowMat = new THREE.ShaderMaterial({
+      vertexShader: fresnelVertexShader,
+      fragmentShader: fresnelFragmentShader,
+      uniforms: {
+        uColor: { value: new THREE.Color(0x020e1a) },
+        uRimColor: { value: new THREE.Color(0x00d4ff) },
+        uRimPower: { value: 3.5 },
+        uOpacity: { value: 0.5 },
+        uTime: { value: 0 },
+      },
       transparent: true,
-      opacity: 0.12,
-      shininess: 150,
-      specular: 0x44ffff,
+      side: THREE.FrontSide,
+      depthWrite: false,
     });
-    const sphere = new THREE.Mesh(sphereGeom, sphereMat);
-    coreGroup.add(sphere);
+    const glowShell = new THREE.Mesh(glowGeom, glowMat);
+    coreGroup.add(glowShell);
 
-    // ── Inner Wireframe Data Grid ──
-    const octaGeom = new THREE.OctahedronGeometry(1.35, 1);
-    const octaMat = new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.8 });
-    const octaLines = new THREE.LineSegments(new THREE.WireframeGeometry(octaGeom), octaMat);
-    coreGroup.add(octaLines);
-
-    // ── Internal Point Cloud Stars (additive blending for glow) ──
-    const pointGeom = new THREE.IcosahedronGeometry(1.5, 5);
-    const pointMat = new THREE.PointsMaterial({
-      color: 0x00f2ff,
-      size: 0.04,
+    // ── Atmosphere Haze (outermost soft glow) ──
+    const hazeGeom = new THREE.SphereGeometry(2.1, 32, 32);
+    const hazeMat = new THREE.ShaderMaterial({
+      vertexShader: fresnelVertexShader,
+      fragmentShader: fresnelFragmentShader,
+      uniforms: {
+        uColor: { value: new THREE.Color(0x000000) },
+        uRimColor: { value: new THREE.Color(0x7c3aed) },
+        uRimPower: { value: 4.5 },
+        uOpacity: { value: 0.25 },
+        uTime: { value: 0 },
+      },
       transparent: true,
-      opacity: 0.9,
+      side: THREE.FrontSide,
+      depthWrite: false,
+    });
+    const haze = new THREE.Mesh(hazeGeom, hazeMat);
+    coreGroup.add(haze);
+
+    // ── Single Clean Orbital Ring (particle trail) ──
+    const ringParticleCount = 200;
+    const ringPositions = new Float32Array(ringParticleCount * 3);
+    const ringOpacities = new Float32Array(ringParticleCount);
+    const ringRadius = 2.4;
+    for (let i = 0; i < ringParticleCount; i++) {
+      const angle = (i / ringParticleCount) * Math.PI * 2;
+      const jitter = (Math.random() - 0.5) * 0.04;
+      ringPositions[i * 3] = Math.cos(angle) * (ringRadius + jitter);
+      ringPositions[i * 3 + 1] = (Math.random() - 0.5) * 0.06;
+      ringPositions[i * 3 + 2] = Math.sin(angle) * (ringRadius + jitter);
+      ringOpacities[i] = 0.3 + Math.random() * 0.7;
+    }
+    const ringGeom = new THREE.BufferGeometry();
+    ringGeom.setAttribute('position', new THREE.BufferAttribute(ringPositions, 3));
+    const ringMat = new THREE.PointsMaterial({
+      color: 0x00d4ff,
+      size: 0.025,
+      transparent: true,
+      opacity: 0.8,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
     });
-    const stars = new THREE.Points(pointGeom, pointMat);
-    coreGroup.add(stars);
+    const ringPoints = new THREE.Points(ringGeom, ringMat);
+    ringPoints.rotation.x = Math.PI * 0.38;
+    ringPoints.rotation.z = -0.15;
+    coreGroup.add(ringPoints);
 
-    // ── Orbital Particle Rings (3 rings with particles orbiting) ──
-    const ringColors = [0x00f2ff, 0x8b5cf6, 0x38bdf8];
-    const orbitRings: THREE.Points[] = [];
-    for (let r = 0; r < 3; r++) {
-      const ringRadius = 2.4 + r * 0.5;
-      const particleCount = 120;
-      const positions = new Float32Array(particleCount * 3);
-      for (let i = 0; i < particleCount; i++) {
-        const angle = (i / particleCount) * Math.PI * 2;
-        const jitter = (Math.random() - 0.5) * 0.08;
-        positions[i * 3] = Math.cos(angle) * (ringRadius + jitter);
-        positions[i * 3 + 1] = (Math.random() - 0.5) * 0.15;
-        positions[i * 3 + 2] = Math.sin(angle) * (ringRadius + jitter);
-      }
-      const ringGeom = new THREE.BufferGeometry();
-      ringGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      const ringMat = new THREE.PointsMaterial({
-        color: ringColors[r],
-        size: 0.035,
+    // ── Data Nodes (small glowing spheres orbiting) ──
+    const nodeGroup = new THREE.Group();
+    nodeGroup.rotation.x = Math.PI * 0.38;
+    nodeGroup.rotation.z = -0.15;
+    coreGroup.add(nodeGroup);
+
+    const nodes: { mesh: THREE.Mesh; angle: number; speed: number; radius: number }[] = [];
+    for (let i = 0; i < 5; i++) {
+      const nodeGeom = new THREE.SphereGeometry(0.05 + Math.random() * 0.04, 16, 16);
+      const nodeMat = new THREE.MeshBasicMaterial({
+        color: i % 2 === 0 ? 0x00d4ff : 0x7c3aed,
         transparent: true,
-        opacity: 0.7,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
+        opacity: 0.9,
       });
-      const ringPoints = new THREE.Points(ringGeom, ringMat);
-      ringPoints.rotation.x = (Math.PI / 4) + r * 0.4;
-      ringPoints.rotation.z = r * 0.6;
-      coreGroup.add(ringPoints);
-      orbitRings.push(ringPoints);
-    }
-
-    // ── Thin Wireframe Torus Rings ──
-    const torusRings: THREE.Mesh[] = [];
-    for (let i = 0; i < 3; i++) {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(2.5 + i * 0.5, 0.008, 16, 128),
-        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x8b5cf6 : 0x00f2ff, transparent: true, opacity: 0.4 })
+      const node = new THREE.Mesh(nodeGeom, nodeMat);
+      const angle = (i / 5) * Math.PI * 2;
+      node.position.set(
+        Math.cos(angle) * ringRadius,
+        0,
+        Math.sin(angle) * ringRadius
       );
-      ring.rotation.x = (Math.PI / 3) + i * 0.3;
-      ring.rotation.y = i * 0.5;
-      coreGroup.add(ring);
-      torusRings.push(ring);
+      nodeGroup.add(node);
+      nodes.push({ mesh: node, angle, speed: 0.15 + Math.random() * 0.1, radius: ringRadius });
     }
 
+    // ── Ambient Floating Particles ──
+    const ambientCount = 60;
+    const ambientPositions = new Float32Array(ambientCount * 3);
+    for (let i = 0; i < ambientCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 2.0 + Math.random() * 1.8;
+      ambientPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      ambientPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      ambientPositions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const ambientGeom = new THREE.BufferGeometry();
+    ambientGeom.setAttribute('position', new THREE.BufferAttribute(ambientPositions, 3));
+    const ambientMat = new THREE.PointsMaterial({
+      color: 0x38bdf8,
+      size: 0.02,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const ambientParticles = new THREE.Points(ambientGeom, ambientMat);
+    coreGroup.add(ambientParticles);
+
+    // ── Mouse Tracking ──
     let mouseX = 0;
     let mouseY = 0;
     const handleMouseMove = (e: MouseEvent) => {
@@ -737,35 +813,42 @@ function StellarCoreCanvas() {
     };
     window.addEventListener('resize', handleResize);
 
+    // ── Animation Loop ──
     const clock = new THREE.Clock();
     const animate = () => {
       const t = clock.getElapsedTime();
 
-      // Core rotation
-      coreGroup.rotation.y += 0.004;
-      stars.rotation.x -= 0.005;
-      stars.rotation.z += 0.002;
-      octaLines.rotation.y -= 0.007;
-      octaLines.rotation.x += 0.002;
+      // Update shader time uniforms
+      orbMat.uniforms.uTime.value = t;
+      glowMat.uniforms.uTime.value = t;
+      hazeMat.uniforms.uTime.value = t;
 
-      // Pulsing energy core
-      const pulse = 1 + Math.sin(t * 2) * 0.15;
-      energyCore.scale.setScalar(pulse);
-      energyMat.opacity = 0.6 + Math.sin(t * 2.5) * 0.3;
+      // Slow elegant rotation
+      coreGroup.rotation.y += 0.002;
 
-      // Sphere breathing
-      sphere.scale.setScalar(1 + Math.sin(t * 1.2) * 0.04);
+      // Subtle orb breathing
+      const breathe = 1 + Math.sin(t * 0.8) * 0.02;
+      orb.scale.setScalar(breathe);
+      glowShell.scale.setScalar(breathe * 1.01);
 
-      // Orbital rings rotation
-      orbitRings.forEach((r, i) => { r.rotation.y += 0.006 * (i + 1); });
-      torusRings.forEach((r, i) => { r.rotation.z += 0.005 * (i + 1); });
+      // Orbital ring rotation
+      ringPoints.rotation.y += 0.004;
+      nodeGroup.rotation.y += 0.004;
 
-      // Dynamic core light pulsing
-      coreGlow.intensity = 4 + Math.sin(t * 2) * 2;
+      // Animate data nodes along orbit
+      nodes.forEach(n => {
+        n.angle += n.speed * 0.016;
+        n.mesh.position.x = Math.cos(n.angle) * n.radius;
+        n.mesh.position.z = Math.sin(n.angle) * n.radius;
+      });
 
-      // Mouse parallax
-      coreGroup.position.x += (mouseX * 1.5 - coreGroup.position.x) * 0.05;
-      coreGroup.position.y += (-mouseY * 1.5 - coreGroup.position.y) * 0.05;
+      // Ambient particles gentle drift
+      ambientParticles.rotation.y += 0.001;
+      ambientParticles.rotation.x += 0.0005;
+
+      // Smooth mouse parallax
+      coreGroup.position.x += (mouseX * 1.0 - coreGroup.position.x) * 0.04;
+      coreGroup.position.y += (-mouseY * 0.8 - coreGroup.position.y) * 0.04;
 
       renderer.render(scene, camera);
       animId = requestAnimationFrame(animate);
@@ -783,7 +866,7 @@ function StellarCoreCanvas() {
     };
   }, []);
 
-  return <div ref={containerRef} className="w-full h-[420px] sm:h-[480px] flex items-center justify-center filter drop-shadow-[0_0_60px_rgba(0,242,255,0.5)] pointer-events-auto" />;
+  return <div ref={containerRef} className="w-full h-[420px] sm:h-[480px] flex items-center justify-center filter drop-shadow-[0_0_80px_rgba(0,212,255,0.35)] pointer-events-auto" />;
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
