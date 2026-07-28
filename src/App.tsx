@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import * as THREE from 'three';
 import { supabase } from './supabase';
 import { Upload as TusUpload } from 'tus-js-client';
 import {
@@ -567,96 +568,138 @@ function AuthModal({
   );
 }
 
-// ─── WebGL Shader Background Canvas ───────────────────────────────────────────
-function ShaderCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+// ─── Three.js 3D Singularity Background Canvas ───────────────────────────────
+function ThreeSingularityBackground() {
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     let animId: number;
-    const gl = (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
-    if (!gl) return;
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
 
-    const syncSize = () => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-      }
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    scene.add(ambientLight);
+    const p1 = new THREE.PointLight(0x00e5ff, 3, 30);
+    p1.position.set(5, 5, 5);
+    scene.add(p1);
+
+    const p2 = new THREE.PointLight(0x8b5cf6, 2, 30);
+    p2.position.set(-5, -5, 5);
+    scene.add(p2);
+
+    // The Singularity Core Group
+    const coreGroup = new THREE.Group();
+    scene.add(coreGroup);
+
+    // Refractive Geodesic Outer Shell
+    const geo = new THREE.IcosahedronGeometry(2, 3);
+    const mat = new THREE.MeshPhongMaterial({
+      color: 0x00e5ff,
+      emissive: 0x002233,
+      transparent: true,
+      opacity: 0.25,
+      shininess: 100,
+      specular: 0x00e5ff,
+      wireframe: true
+    });
+    const shell = new THREE.Mesh(geo, mat);
+    coreGroup.add(shell);
+
+    // Inner Kinetic Point Cloud
+    const pointGeom = new THREE.IcosahedronGeometry(1.2, 4);
+    const pointMat = new THREE.PointsMaterial({
+      color: 0x00e5ff,
+      size: 0.025,
+      transparent: true,
+      opacity: 0.8
+    });
+    const points = new THREE.Points(pointGeom, pointMat);
+    coreGroup.add(points);
+
+    // Quantum Orbitals
+    const orbitals: THREE.Mesh[] = [];
+    for (let i = 0; i < 4; i++) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(2.5 + i * 0.45, 0.015, 16, 100),
+        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00e5ff : 0x8b5cf6, transparent: true, opacity: 0.35 })
+      );
+      ring.rotation.x = Math.random() * Math.PI;
+      ring.rotation.y = Math.random() * Math.PI;
+      coreGroup.add(ring);
+      orbitals.push(ring);
+    }
+
+    // Ambient Data Star Particles
+    const particleCount = 1500;
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 22;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 22;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 22;
+    }
+    const partGeom = new THREE.BufferGeometry();
+    partGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const partMat = new THREE.PointsMaterial({ color: 0x00e5ff, size: 0.02, transparent: true, opacity: 0.4 });
+    const particleSystem = new THREE.Points(partGeom, partMat);
+    scene.add(particleSystem);
+
+    camera.position.z = 7;
+
+    let mouseX = 0;
+    let mouseY = 0;
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseX = (e.clientX / window.innerWidth) - 0.5;
+      mouseY = (e.clientY / window.innerHeight) - 0.5;
     };
-    syncSize();
-    window.addEventListener('resize', syncSize);
+    window.addEventListener('mousemove', handleMouseMove);
 
-    const vs = `attribute vec2 a_position;
-varying vec2 v_texCoord;
-void main() {
-  v_texCoord = a_position * 0.5 + 0.5;
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
-    const fs = `precision highp float;
-varying vec2 v_texCoord;
-uniform float u_time;
-
-void main() {
-    vec2 uv = v_texCoord;
-    float noise = sin(uv.x * 10.0 + u_time * 0.8) * cos(uv.y * 10.0 + u_time * 0.4);
-    vec3 color1 = vec3(0.02, 0.03, 0.05);
-    vec3 color2 = vec3(0.05, 0.02, 0.12);
-    
-    vec3 finalColor = mix(color1, color2, noise * 0.15 + 0.1);
-    float scanline = sin(uv.y * 600.0) * 0.015;
-    finalColor -= scanline;
-
-    gl_FragColor = vec4(finalColor, 1.0);
-}`;
-
-    const createShader = (type: number, src: string) => {
-      const shader = gl.createShader(type);
-      if (!shader) return null;
-      gl.shaderSource(shader, src);
-      gl.compileShader(shader);
-      return shader;
+    const handleResize = () => {
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
     };
+    window.addEventListener('resize', handleResize);
 
-    const vertShader = createShader(gl.VERTEX_SHADER, vs);
-    const fragShader = createShader(gl.FRAGMENT_SHADER, fs);
-    if (!vertShader || !fragShader) return;
+    const animate = (t: number) => {
+      coreGroup.rotation.y += 0.003;
+      points.rotation.x -= 0.005;
+      shell.scale.setScalar(1 + Math.sin(t * 0.001) * 0.04);
+      orbitals.forEach((o, i) => { o.rotation.z += 0.008 * (i + 1); });
+      particleSystem.rotation.y += 0.0008;
 
-    const prog = gl.createProgram();
-    if (!prog) return;
-    gl.attachShader(prog, vertShader);
-    gl.attachShader(prog, fragShader);
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
+      coreGroup.position.x += (mouseX * 2.5 - coreGroup.position.x) * 0.05;
+      coreGroup.position.y += (-mouseY * 2.5 - coreGroup.position.y) * 0.05;
 
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-
-    const pos = gl.getAttribLocation(prog, 'a_position');
-    gl.enableVertexAttribArray(pos);
-    gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
-
-    const uTime = gl.getUniformLocation(prog, 'u_time');
-
-    const render = (t: number) => {
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      if (uTime) gl.uniform1f(uTime, t * 0.001);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      animId = requestAnimationFrame(render);
+      renderer.render(scene, camera);
+      animId = requestAnimationFrame(animate);
     };
-    animId = requestAnimationFrame(render);
+    animId = requestAnimationFrame(animate);
 
     return () => {
       cancelAnimationFrame(animId);
-      window.removeEventListener('resize', syncSize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+      if (container.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
+      }
+      renderer.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full pointer-events-none opacity-60 z-[-1]" />;
+  return <div ref={containerRef} className="fixed inset-0 w-full h-full pointer-events-none -z-10 mix-blend-screen opacity-85" />;
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
@@ -672,7 +715,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
-      <ShaderCanvas />
+      <ThreeSingularityBackground />
 
       {/* ── Top Floating Curved Nav ── */}
       <motion.nav
@@ -726,7 +769,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
         >
           <Sparkles size={13} className="text-cyan-400 animate-pulse" />
-          The Speed of Thought · Encrypted Cloud Protocol
+          The Quantum Singularity · Event Horizon Storage
         </motion.div>
 
         {/* Headline */}
@@ -738,7 +781,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         >
           ZupShare:
           <br />
-          <span className="text-gradient-cyan">The Speed of Thought.</span>
+          <span className="text-gradient-cyan">The Quantum Singularity.</span>
         </motion.h1>
 
         {/* Sub */}
@@ -748,7 +791,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           transition={{ delay: 0.35, duration: 0.6 }}
           className="mt-6 text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
         >
-          Encrypted. Ethereal. Instant. Experience high-performance public cloud storage and a secured private Safe Space.
+          Absolute Data Security. Infinite Speed. Experience the Event Horizon of Storage.
         </motion.p>
 
         {/* CTAs */}
@@ -760,17 +803,17 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         >
           <button
             onClick={onGetStarted}
-            className="group relative flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
+            className="group relative flex items-center gap-3 px-9 py-4.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
           >
-            <span>Launch Drive</span>
+            <span>Initialize Core 🚀</span>
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
           </button>
           <button
             onClick={onOpenAuth}
-            className="flex items-center gap-2.5 px-8 py-4 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
+            className="flex items-center gap-2.5 px-8 py-4.5 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
           >
             <ShieldCheck size={18} className="text-cyan-400" />
-            Security Protocol
+            View Architecture
           </button>
         </motion.div>
 
@@ -783,9 +826,9 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         >
           {[
             { val: '₹0', label: 'Free Cloud Tier' },
-            { val: 'TUS', label: 'Resumable Streaming' },
-            { val: 'AES-256', label: 'Neural Encryption' },
-            { val: '0ms', label: 'Zero Setup Barrier' },
+            { val: 'TUS', label: 'Resumable Protocol' },
+            { val: 'AES-512', label: 'Entropic Encryption' },
+            { val: '0ms', label: 'Zero Transfer Delay' },
           ].map((s, i) => (
             <div key={i} className="flex flex-col items-center">
               <span className="text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
@@ -800,14 +843,14 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 text-xs font-medium mb-4">
-              Architecture Overview
+              Architecture Modules
             </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-jakarta text-white">Bento Architecture</h2>
-            <p className="mt-4 text-foreground/50 max-w-md mx-auto">Designed for high-performance cloud file operations and security.</p>
+            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight font-jakarta text-white">Quantum Grid Modules</h2>
+            <p className="mt-4 text-foreground/50 max-w-md mx-auto">Engineered for absolute mathematical data isolation and light-speed CDN access.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Bento Card 1: Neural Security */}
+            {/* Bento Card 1: Entropic Encryption */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -816,9 +859,9 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
             >
               <div className="absolute -top-10 -right-10 w-32 h-32 bg-cyan-500/20 rounded-full blur-[60px] group-hover:opacity-60 transition-opacity" />
               <Shield size={36} className="text-cyan-400 mb-2" />
-              <h3 className="text-xl font-bold text-white font-jakarta">Neural Security</h3>
+              <h3 className="text-xl font-bold text-white font-jakarta">Entropic Encryption</h3>
               <p className="text-xs text-foreground/50 leading-relaxed">
-                AES-256 encryption woven into the fabric of every byte. Your data exists in a state of absolute isolation.
+                Military-grade AES protection interwoven with quantum-resistant algorithms. Your data exists in a state of absolute mathematical isolation.
               </p>
               <div className="mt-auto pt-4 border-t border-white/10 flex items-center justify-between">
                 <span className="px-2.5 py-1 bg-cyan-500/10 border border-cyan-500/30 rounded text-[10px] text-cyan-300 tracking-wider uppercase font-semibold">
@@ -828,7 +871,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
               </div>
             </motion.div>
 
-            {/* Bento Card 2: Kinetic Speed */}
+            {/* Bento Card 2: Zero-Latency CDN */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -838,16 +881,16 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
             >
               <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[60px] group-hover:opacity-60 transition-opacity" />
               <Zap size={36} className="text-purple-400 mb-2" />
-              <h3 className="text-xl font-bold text-white font-jakarta">Kinetic Speed</h3>
+              <h3 className="text-xl font-bold text-white font-jakarta">Zero-Latency CDN</h3>
               <p className="text-xs text-foreground/50 leading-relaxed">
-                Powered by a globally distributed Edge CDN with TUS resumable multipart protocol. Access your files faster than thought itself.
+                Global light-speed access via strategically positioned edge nodes. Data propagation occurs instantly across the planetary network.
               </p>
               <div className="w-full h-1 bg-white/10 rounded-full mt-auto relative overflow-hidden">
                 <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-cyan-400 to-purple-500 w-full animate-pulse" />
               </div>
             </motion.div>
 
-            {/* Bento Card 3: Infinite Horizon */}
+            {/* Bento Card 3: Infinite Capacity */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -857,9 +900,9 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
             >
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-blue-500/15 rounded-full blur-[60px] group-hover:opacity-60 transition-opacity" />
               <Globe size={36} className="text-blue-400 mb-2" />
-              <h3 className="text-xl font-bold text-white font-jakarta">Infinite Horizon</h3>
+              <h3 className="text-xl font-bold text-white font-jakarta">Infinite Capacity</h3>
               <p className="text-xs text-foreground/50 leading-relaxed">
-                Limitless cloud storage architecture. Scale without boundaries in a frictionless, zero-setup public & private environment.
+                Scaling beyond physical limits. Our storage grid dynamically expands in real-time to provide virtually limitless digital real estate.
               </p>
               <div className="mt-auto pt-4 flex gap-2">
                 <span className="text-[10px] bg-white/10 px-2.5 py-1 rounded text-white font-mono">Scalable</span>
