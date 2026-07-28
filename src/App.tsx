@@ -568,8 +568,8 @@ function AuthModal({
   );
 }
 
-// ─── Three.js 3D Singularity Background Canvas ───────────────────────────────
-function ThreeSingularityBackground() {
+// ─── Three.js 3D Interactive Deep Space Universe ─────────────────────────────
+function ThreeUniverseBackground() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -581,83 +581,188 @@ function ThreeSingularityBackground() {
     const height = container.clientHeight || window.innerHeight;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+    scene.fog = new THREE.FogExp2(0x030712, 0.025);
+
+    const camera = new THREE.PerspectiveCamera(65, width / height, 0.1, 1000);
+    camera.position.set(0, 4, 12);
+    camera.lookAt(0, 0, 0);
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     container.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    // ── Lighting ──
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
-    const p1 = new THREE.PointLight(0x00e5ff, 3, 30);
-    p1.position.set(5, 5, 5);
-    scene.add(p1);
 
-    const p2 = new THREE.PointLight(0x8b5cf6, 2, 30);
-    p2.position.set(-5, -5, 5);
-    scene.add(p2);
+    const coreLight1 = new THREE.PointLight(0x00f2ff, 4, 40);
+    coreLight1.position.set(0, 0, 0);
+    scene.add(coreLight1);
 
-    // The Singularity Core Group
-    const coreGroup = new THREE.Group();
-    scene.add(coreGroup);
+    const coreLight2 = new THREE.PointLight(0x8b5cf6, 3, 35);
+    coreLight2.position.set(3, 2, 3);
+    scene.add(coreLight2);
 
-    // Refractive Geodesic Outer Shell
-    const geo = new THREE.IcosahedronGeometry(2, 3);
-    const mat = new THREE.MeshPhongMaterial({
-      color: 0x00e5ff,
-      emissive: 0x002233,
+    const universeGroup = new THREE.Group();
+    scene.add(universeGroup);
+
+    // ── 1. 6,000 Star Particle Spiral Galaxy ──
+    const starCount = 6000;
+    const starPositions = new Float32Array(starCount * 3);
+    const starColors = new Float32Array(starCount * 3);
+
+    const branches = 4;
+    const radius = 14;
+    const spin = 1.2;
+
+    const colorCore = new THREE.Color(0xffffff);
+    const colorInner = new THREE.Color(0x00f2ff); // Electric Cyan
+    const colorMiddle = new THREE.Color(0x8b5cf6); // Royal Violet
+    const colorOuter = new THREE.Color(0xec4899); // Nebula Pink
+
+    for (let i = 0; i < starCount; i++) {
+      const r = Math.pow(Math.random(), 1.8) * radius;
+      const branchAngle = ((i % branches) / branches) * Math.PI * 2;
+      const spinAngle = r * spin;
+
+      const randomX = (Math.random() - 0.5) * Math.pow(r / radius, 1.5) * 2;
+      const randomY = (Math.random() - 0.5) * Math.pow(r / radius, 1.5) * 1.5;
+      const randomZ = (Math.random() - 0.5) * Math.pow(r / radius, 1.5) * 2;
+
+      const x = Math.cos(branchAngle + spinAngle) * r + randomX;
+      const y = randomY;
+      const z = Math.sin(branchAngle + spinAngle) * r + randomZ;
+
+      starPositions[i * 3] = x;
+      starPositions[i * 3 + 1] = y;
+      starPositions[i * 3 + 2] = z;
+
+      const mixedColor = colorCore.clone();
+      const ratio = r / radius;
+      if (ratio < 0.25) {
+        mixedColor.lerp(colorInner, ratio * 4);
+      } else if (ratio < 0.65) {
+        mixedColor.copy(colorInner).lerp(colorMiddle, (ratio - 0.25) * 2.5);
+      } else {
+        mixedColor.copy(colorMiddle).lerp(colorOuter, (ratio - 0.65) * 2.8);
+      }
+
+      starColors[i * 3] = mixedColor.r;
+      starColors[i * 3 + 1] = mixedColor.g;
+      starColors[i * 3 + 2] = mixedColor.b;
+    }
+
+    const galaxyGeom = new THREE.BufferGeometry();
+    galaxyGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+    galaxyGeom.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
+
+    const galaxyMat = new THREE.PointsMaterial({
+      size: 0.045,
+      vertexColors: true,
       transparent: true,
-      opacity: 0.25,
-      shininess: 100,
-      specular: 0x00e5ff,
+      opacity: 0.85,
+      blending: THREE.AdditiveBlending
+    });
+
+    const galaxyPoints = new THREE.Points(galaxyGeom, galaxyMat);
+    universeGroup.add(galaxyPoints);
+
+    // ── 2. Supermassive Black Hole & Accretion Disk ──
+    const bhGroup = new THREE.Group();
+
+    // Black Hole Core
+    const bhGeom = new THREE.SphereGeometry(0.85, 32, 32);
+    const bhMat = new THREE.MeshBasicMaterial({ color: 0x010308 });
+    const bhCore = new THREE.Mesh(bhGeom, bhMat);
+    bhGroup.add(bhCore);
+
+    // Accretion Disk Ring 1 (Cyan Energy)
+    const accGeom1 = new THREE.TorusGeometry(1.6, 0.18, 20, 100);
+    const accMat1 = new THREE.MeshPhongMaterial({
+      color: 0x00f2ff,
+      emissive: 0x005577,
+      transparent: true,
+      opacity: 0.7,
       wireframe: true
     });
-    const shell = new THREE.Mesh(geo, mat);
-    coreGroup.add(shell);
+    const accRing1 = new THREE.Mesh(accGeom1, accMat1);
+    accRing1.rotation.x = Math.PI * 0.45;
+    bhGroup.add(accRing1);
 
-    // Inner Kinetic Point Cloud
-    const pointGeom = new THREE.IcosahedronGeometry(1.2, 4);
-    const pointMat = new THREE.PointsMaterial({
-      color: 0x00e5ff,
-      size: 0.025,
+    // Accretion Disk Ring 2 (Purple Flare)
+    const accGeom2 = new THREE.TorusGeometry(2.1, 0.08, 16, 100);
+    const accMat2 = new THREE.MeshBasicMaterial({
+      color: 0x8b5cf6,
+      transparent: true,
+      opacity: 0.45
+    });
+    const accRing2 = new THREE.Mesh(accGeom2, accMat2);
+    accRing2.rotation.x = Math.PI * 0.42;
+    accRing2.rotation.y = Math.PI * 0.25;
+    bhGroup.add(accRing2);
+
+    universeGroup.add(bhGroup);
+
+    // ── 3. Orbiting Planets ──
+    // Planet Alpha: Gas Giant with Rings
+    const planetAlphaGroup = new THREE.Group();
+    const pAlphaGeom = new THREE.SphereGeometry(0.55, 32, 32);
+    const pAlphaMat = new THREE.MeshStandardMaterial({
+      color: 0x00daf3,
+      roughness: 0.4,
+      metalness: 0.6
+    });
+    const pAlphaMesh = new THREE.Mesh(pAlphaGeom, pAlphaMat);
+    planetAlphaGroup.add(pAlphaMesh);
+
+    // Planet Alpha Rings
+    const ringGeom = new THREE.TorusGeometry(0.9, 0.1, 2, 64);
+    const ringMat = new THREE.MeshBasicMaterial({ color: 0xc3f5ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+    const ringMesh = new THREE.Mesh(ringGeom, ringMat);
+    ringMesh.rotation.x = Math.PI / 3;
+    planetAlphaGroup.add(ringMesh);
+
+    universeGroup.add(planetAlphaGroup);
+
+    // Planet Beta: Energy Crystal Planet
+    const pBetaGeom = new THREE.IcosahedronGeometry(0.4, 2);
+    const pBetaMat = new THREE.MeshPhongMaterial({
+      color: 0xa855f7,
+      emissive: 0x3b0764,
+      wireframe: true,
       transparent: true,
       opacity: 0.8
     });
-    const points = new THREE.Points(pointGeom, pointMat);
-    coreGroup.add(points);
+    const pBetaMesh = new THREE.Mesh(pBetaGeom, pBetaMat);
+    universeGroup.add(pBetaMesh);
 
-    // Quantum Orbitals
-    const orbitals: THREE.Mesh[] = [];
-    for (let i = 0; i < 4; i++) {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(2.5 + i * 0.45, 0.015, 16, 100),
-        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00e5ff : 0x8b5cf6, transparent: true, opacity: 0.35 })
-      );
-      ring.rotation.x = Math.random() * Math.PI;
-      ring.rotation.y = Math.random() * Math.PI;
-      coreGroup.add(ring);
-      orbitals.push(ring);
+    // ── 4. Ambient Cosmic Dust Nebulae ──
+    const dustCount = 400;
+    const dustPositions = new Float32Array(dustCount * 3);
+    for (let i = 0; i < dustCount; i++) {
+      dustPositions[i * 3] = (Math.random() - 0.5) * 30;
+      dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 16;
+      dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 30;
     }
+    const dustGeom = new THREE.BufferGeometry();
+    dustGeom.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
+    const dustMat = new THREE.PointsMaterial({
+      color: 0x38bdf8,
+      size: 0.08,
+      transparent: true,
+      opacity: 0.35,
+      blending: THREE.AdditiveBlending
+    });
+    const dustPoints = new THREE.Points(dustGeom, dustMat);
+    scene.add(dustPoints);
 
-    // Ambient Data Star Particles
-    const particleCount = 1500;
-    const positions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 22;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 22;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 22;
-    }
-    const partGeom = new THREE.BufferGeometry();
-    partGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const partMat = new THREE.PointsMaterial({ color: 0x00e5ff, size: 0.02, transparent: true, opacity: 0.4 });
-    const particleSystem = new THREE.Points(partGeom, partMat);
-    scene.add(particleSystem);
-
-    camera.position.z = 7;
-
+    // ── Mouse & Interaction ──
     let mouseX = 0;
     let mouseY = 0;
+    let targetX = 0;
+    let targetY = 0;
+
     const handleMouseMove = (e: MouseEvent) => {
       mouseX = (e.clientX / window.innerWidth) - 0.5;
       mouseY = (e.clientY / window.innerHeight) - 0.5;
@@ -673,20 +778,44 @@ function ThreeSingularityBackground() {
     };
     window.addEventListener('resize', handleResize);
 
-    const animate = (t: number) => {
-      coreGroup.rotation.y += 0.003;
-      points.rotation.x -= 0.005;
-      shell.scale.setScalar(1 + Math.sin(t * 0.001) * 0.04);
-      orbitals.forEach((o, i) => { o.rotation.z += 0.008 * (i + 1); });
-      particleSystem.rotation.y += 0.0008;
+    // ── Animation Loop ──
+    let clock = new THREE.Clock();
 
-      coreGroup.position.x += (mouseX * 2.5 - coreGroup.position.x) * 0.05;
-      coreGroup.position.y += (-mouseY * 2.5 - coreGroup.position.y) * 0.05;
+    const animate = () => {
+      const elapsedTime = clock.getElapsedTime();
+
+      // Galaxy & Core Rotation
+      galaxyPoints.rotation.y = elapsedTime * 0.04;
+      accRing1.rotation.z = elapsedTime * 0.3;
+      accRing2.rotation.z = -elapsedTime * 0.2;
+      dustPoints.rotation.y = elapsedTime * 0.01;
+
+      // Planet Alpha Orbiting around Galaxy
+      const orbit1R = 6.5;
+      planetAlphaGroup.position.x = Math.cos(elapsedTime * 0.25) * orbit1R;
+      planetAlphaGroup.position.z = Math.sin(elapsedTime * 0.25) * orbit1R;
+      planetAlphaGroup.position.y = Math.sin(elapsedTime * 0.5) * 0.8;
+      pAlphaMesh.rotation.y = elapsedTime * 0.8;
+
+      // Planet Beta Counter Orbiting
+      const orbit2R = 4.2;
+      pBetaMesh.position.x = Math.cos(-elapsedTime * 0.35 + 2) * orbit2R;
+      pBetaMesh.position.z = Math.sin(-elapsedTime * 0.35 + 2) * orbit2R;
+      pBetaMesh.position.y = Math.cos(elapsedTime * 0.4) * 1.2;
+      pBetaMesh.rotation.x = elapsedTime * 0.5;
+      pBetaMesh.rotation.y = elapsedTime * 0.6;
+
+      // Smooth Camera Parallax Tracking Mouse Cursor
+      targetX = mouseX * 4;
+      targetY = -mouseY * 3;
+      camera.position.x += (targetX - camera.position.x) * 0.04;
+      camera.position.y += (targetY + 3 - camera.position.y) * 0.04;
+      camera.lookAt(0, 0, 0);
 
       renderer.render(scene, camera);
       animId = requestAnimationFrame(animate);
     };
-    animId = requestAnimationFrame(animate);
+    animate();
 
     return () => {
       cancelAnimationFrame(animId);
@@ -699,7 +828,7 @@ function ThreeSingularityBackground() {
     };
   }, []);
 
-  return <div ref={containerRef} className="fixed inset-0 w-full h-full pointer-events-none -z-10 mix-blend-screen opacity-85" />;
+  return <div ref={containerRef} className="fixed inset-0 w-full h-full pointer-events-none -z-10 mix-blend-screen opacity-90" />;
 }
 
 // ─── Landing Page ────────────────────────────────────────────────────────────
@@ -715,7 +844,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
-      <ThreeSingularityBackground />
+      <ThreeUniverseBackground />
 
       {/* ── Top Floating Curved Nav ── */}
       <motion.nav
@@ -766,10 +895,13 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
+          className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-semibold mb-6 shadow-[0_0_15px_rgba(0,242,255,0.2)]"
         >
-          <Sparkles size={13} className="text-cyan-400 animate-pulse" />
-          The Quantum Singularity · Event Horizon Storage
+          <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse"></span>
+          <Sparkles size={13} className="text-cyan-400" />
+          <span className="text-cyan-300 font-mono text-[11px]">System Status: Optimal</span>
+          <span className="text-foreground/30">|</span>
+          <span>Deep Space Universe</span>
         </motion.div>
 
         {/* Headline */}
@@ -781,7 +913,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         >
           ZupShare:
           <br />
-          <span className="text-gradient-cyan">The Quantum Singularity.</span>
+          <span className="text-gradient-cyan">Your data, illuminated.</span>
         </motion.h1>
 
         {/* Sub */}
@@ -791,7 +923,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           transition={{ delay: 0.35, duration: 0.6 }}
           className="mt-6 text-lg text-foreground/60 max-w-xl leading-relaxed font-body-lg"
         >
-          Absolute Data Security. Infinite Speed. Experience the Event Horizon of Storage.
+          The world's first high-performance cloud storage built for the speed of light. Secure. Scalable. Invisible.
         </motion.p>
 
         {/* CTAs */}
@@ -803,9 +935,9 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
         >
           <button
             onClick={onGetStarted}
-            className="group relative flex items-center gap-3 px-9 py-4.5 rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
+            className="group relative flex items-center gap-3 px-9 py-4.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-600 text-slate-950 font-bold text-base shadow-2xl glow-effect hover:scale-105 transition-all duration-200"
           >
-            <span>Initialize Core 🚀</span>
+            <span>Launch Drive 🚀</span>
             <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform duration-200" />
           </button>
           <button
@@ -813,7 +945,7 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
             className="flex items-center gap-2.5 px-8 py-4.5 rounded-2xl border border-cyan-500/40 hover:bg-cyan-500/10 text-cyan-300 font-semibold text-base transition-all duration-200"
           >
             <ShieldCheck size={18} className="text-cyan-400" />
-            View Architecture
+            Security Protocol 🔒
           </button>
         </motion.div>
 
@@ -825,10 +957,10 @@ function LandingPage({ onGetStarted, onOpenAuth }: { onGetStarted: () => void; o
           className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl w-full pt-10 border-t border-white/10"
         >
           {[
-            { val: '₹0', label: 'Free Cloud Tier' },
-            { val: 'TUS', label: 'Resumable Protocol' },
-            { val: 'AES-512', label: 'Entropic Encryption' },
-            { val: '0ms', label: 'Zero Transfer Delay' },
+            { val: '6,000+', label: 'Cosmic Node Stars' },
+            { val: '0ms', label: 'Quantum CDN Latency' },
+            { val: 'AES-512', label: 'Prism Encryption' },
+            { val: '∞', label: 'Elastic Capacity' },
           ].map((s, i) => (
             <div key={i} className="flex flex-col items-center">
               <span className="text-2xl font-extrabold text-white tracking-tight font-jakarta">{s.val}</span>
